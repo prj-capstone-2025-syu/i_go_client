@@ -727,7 +727,7 @@ const Home: FC = () => {
                 {/* 일정이 없는 경우(로딩 완료 후) */}
                 {scheduleDataReady && !isLoading && !currentSchedule && (
                   <p className="text-[#383838] text-center py-2">
-                    가장 가까운 일정이 없습니다.
+                    진행 중인 일정이 없습니다.
                   </p>
                 )}
 
