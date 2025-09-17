@@ -7,10 +7,8 @@ import { Suspense } from "react";
 
 // --- 유틸리티 및 아이콘 컴포넌트 ---
 
-// 1. sleep 함수 추가: 비동기 흐름에서 지연을 주기 위함
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-// 2. Google 아이콘 추가
 const GoogleIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
@@ -38,7 +36,40 @@ const GoogleIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
     <path d="M1 1h24v24H1z" fill="none" />
   </svg>
 );
-// ...(다른 아이콘 컴포넌트는 생략)...
+
+// --- 토큰 검증 유틸리티 함수 ---
+const getAccessToken = (): string | null => {
+  if (typeof window === "undefined") return null;
+
+  // localStorage에서 access_token 확인
+  const token = localStorage.getItem("access_token");
+  if (token) return token;
+
+  // 쿠키에서 access_token 확인
+  const cookies = document.cookie.split(";");
+  for (let cookie of cookies) {
+    const [name, value] = cookie.trim().split("=");
+    if (name === "access_token") {
+      return value;
+    }
+  }
+
+  // URL 파라미터에서 access_token 확인 (OAuth 리다이렉트 후)
+  const urlParams = new URLSearchParams(window.location.search);
+  const urlToken = urlParams.get("access_token");
+  if (urlToken) {
+    // URL에서 받은 토큰을 localStorage에 저장
+    localStorage.setItem("access_token", urlToken);
+    return urlToken;
+  }
+
+  return null;
+};
+
+const isLoggedIn = (): boolean => {
+  const token = getAccessToken();
+  return token !== null && token !== "";
+};
 
 // --- 채팅 UI 관련 타입 및 컴포넌트 정의 ---
 
@@ -59,7 +90,6 @@ interface Message {
   actionsDisabled?: boolean;
 }
 
-// 3. 재사용 가능한 ActionButton 컴포넌트
 const ActionButton: React.FC<ActionButtonProps> = ({
   text,
   icon,
@@ -108,7 +138,7 @@ const MessageItem: React.FC<{ message: Message }> = ({ message }) => {
         }`}
       >
         <div
-          className={`group max-w-xs md:max-w-md p-3 shadow-sm ${
+          className={`group max-w-xs md:max-md p-3 shadow-sm ${
             message.isSenderMe
               ? myMessageBubbleClass
               : partnerMessageBubbleClass
@@ -149,19 +179,38 @@ const ChatInterface = () => {
   const messageAreaRef = useRef<HTMLDivElement>(null);
 
   const [messages, setMessages] = useState<Message[]>([]);
-  const [isFlowRunning, setIsFlowRunning] = useState(false); // AI 대화 흐름 진행 여부
+  const [isFlowRunning, setIsFlowRunning] = useState(false);
+
+  // useRef를 사용하여 온보딩 흐름 중복 실행 방지
+  const onboardingFlowHasRun = useRef(false);
 
   const aiPartner = { name: "아이고 AI", avatarUrl: "/logo.png" };
   const currentUser = { name: "나", avatarUrl: "..." };
 
-  // 범용 메시지 추가 함수
+  // 로그인 상태 확인 및 리다이렉트
+  useEffect(() => {
+    // 로그인 상태 확인
+    if (isLoggedIn()) {
+      // 로그인된 상태라면 이전 페이지로 이동
+      // history.length가 1이면 직접 URL로 접근한 경우이므로 홈으로 이동
+      if (window.history.length > 1) {
+        router.back();
+      } else {
+        // 직접 URL로 접근한 경우 메인 페이지나 대시보드로 이동
+        router.push("/"); // 또는 '/dashboard', '/main' 등 원하는 페이지
+      }
+      return;
+    }
+  }, [router]);
+
+  // 범용 메시지
   const addMessage = (
     text: string,
     sender: any,
     options: Partial<Message> = {}
   ) => {
     const newMessage: Message = {
-      id: String(Date.now()) + Math.random(),
+      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       text,
       sender,
       isSenderMe: sender === currentUser,
@@ -175,10 +224,19 @@ const ChatInterface = () => {
     setMessages((prev) => [...prev, newMessage]);
   };
 
-  // 4. 비동기 대화 흐름 구현
+  //useEffect에 중복 실행 방지 로직
   useEffect(() => {
+    // 로그인된 상태라면 온보딩 흐름을 실행하지 않음
+    if (isLoggedIn()) return;
+
+    // 온보딩 흐름이 이미 실행되었거나, 다른 AI 흐름이 진행 중이면 중복 실행 방지
+    if (onboardingFlowHasRun.current || isFlowRunning) {
+      return;
+    }
+
     const runOnboardingFlow = async () => {
       setIsFlowRunning(true);
+      onboardingFlowHasRun.current = true; // 온보딩 흐름 실행됨으로 표시
 
       await sleep(1000);
       addMessage("아이고... 또 지각하셨나요? 🐢", aiPartner);
@@ -198,8 +256,9 @@ const ChatInterface = () => {
       });
       setIsFlowRunning(false);
     };
+
     runOnboardingFlow();
-  }, []);
+  }, []); // 빈 의존성 배열 유지
 
   // 버튼 비활성화 로직
   const disablePreviousActions = () => {
@@ -226,8 +285,11 @@ const ChatInterface = () => {
             text: "Google 계정으로 로그인",
             icon: <GoogleIcon />,
             onClick: () => {
-              alert("Google 로그인 로직을 실행합니다.");
-              // router.push('/api/auth/google'); // 실제 로그인 경로
+              //TODO: 백엔드 URL 설정
+              //const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://igo.ai.kr';
+              const BACKEND_URL = "http://localhost:8080";
+              // Google OAuth 인증 URL로 리다이렉트
+              window.location.href = `${BACKEND_URL}/oauth2/authorization/google`;
             },
           },
         ],
@@ -247,7 +309,7 @@ const ChatInterface = () => {
     setIsFlowRunning(true);
     disablePreviousActions();
 
-    addMessage("설명이 필요해 🥲", currentUser);
+    addMessage("설명이 필요해 😂", currentUser);
 
     await sleep(1000);
     addMessage(
@@ -281,8 +343,12 @@ const ChatInterface = () => {
             text: "Google 계정으로 시작하기",
             icon: <GoogleIcon />,
             onClick: () => {
-              alert("Google 회원가입 로직을 실행합니다.");
-              // router.push('/api/auth/google/signup'); // 실제 회원가입 경로
+              //TODO: 백엔드 URL 설정
+              const BACKEND_URL =
+                process.env.NEXT_PUBLIC_BACKEND_URL || "https://igo.ai.kr";
+              //const BACKEND_URL = 'http://localhost:8080';
+              // Google OAuth 인증 URL로 리다이렉트
+              window.location.href = `${BACKEND_URL}/oauth2/authorization/google`;
             },
           },
         ],
@@ -298,9 +364,20 @@ const ChatInterface = () => {
     }
   }, [messages]);
 
+  // 로그인된 상태라면 빈 화면을 보여주거나 로딩 표시
+  if (isLoggedIn()) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-4"></div>
+          <p className="text-gray-600">이전 페이지로 이동 중...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col grow h-full w-full bg-[#F9F9F9] overflow-hidden">
-      {/* <ChatHeader /> 헤더는 시나리오에 없으므로 일단 주석 처리 */}
       <div
         ref={messageAreaRef}
         className="grow px-4 py-5 flex flex-col overflow-y-auto gap-y-2"
@@ -309,7 +386,6 @@ const ChatInterface = () => {
           <MessageItem key={msg.id} message={msg} />
         ))}
       </div>
-      {/* 온보딩 중에는 메시지 입력창을 보여주지 않음 */}
     </div>
   );
 };
