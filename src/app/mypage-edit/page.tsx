@@ -39,10 +39,11 @@ export default function MypageEdit() {
         } else {
           setError("사용자 정보를 가져올 수 없습니다.");
         }
-      } catch (err: any) { // 에러 타입 명시
+      } catch (err: any) {
+        // 에러 타입 명시
         console.error("사용자 정보 가져오기 실패:", err);
         setError(
-            err.response?.data?.message ||
+          err.response?.data?.message ||
             "사용자 정보를 불러오는데 실패했습니다."
         );
         // 인증되지 않은 사용자의 경우 로그인 페이지로 리디렉션 고려
@@ -116,116 +117,128 @@ export default function MypageEdit() {
 
   if (loading) {
     return (
-        <div className="flex flex-col w-full h-full">
-          <NavBarMain link="/setting"></NavBarMain>
-          <div className="flex justify-center items-center w-full h-full p-[20px]">
-            <p> </p>
-          </div>
+      <div className="flex flex-col w-full h-full">
+        <NavBarMain link="/setting"></NavBarMain>
+        <div className="flex justify-center items-center w-full h-full p-[20px]">
+          <p> </p>
         </div>
+      </div>
     );
   }
 
   if (error) {
     return (
-        <div className="flex flex-col w-full h-full">
-          <NavBarMain link="/setting"></NavBarMain>
-          <div className="flex justify-center items-center w-full h-full p-[20px]">
-            <p className="text-red-500">{error}</p>
-            <button onClick={() => router.push('/login')} className="mt-4 p-2 bg-blue-500 text-white rounded">
-              로그인 페이지로 이동
-            </button>
-          </div>
+      <div className="flex flex-col w-full h-full">
+        <NavBarMain link="/setting"></NavBarMain>
+        <div className="flex justify-center items-center w-full h-full p-[20px]">
+          <p className="text-red-500">{error}</p>
+          <button
+            onClick={() => router.push("/login")}
+            className="mt-4 p-2 bg-blue-500 text-white rounded"
+          >
+            로그인 페이지로 이동
+          </button>
         </div>
+      </div>
     );
   }
 
   return (
-      <div className="flex flex-col w-full h-full">
-        <NavBarMain link="/setting"></NavBarMain>
-        <div className="w-full max-h-full overflow-y-auto">
-          <div className="flex flex-col items-center justify-start p-[20px] w-full h-auto gap-y-[15px]">
-            {/* 사용자 정보 표시 */}
+    <div className="flex flex-col w-full h-full">
+      <NavBarMain link="/setting"></NavBarMain>
+      <div className="w-full max-h-full overflow-y-auto">
+        <div className="flex flex-col items-center justify-start p-[20px] w-full h-auto gap-y-[15px]">
+          {/* 사용자 정보 표시 */}
+          <div
+            className="border-[1px] p-[20px] border-[#dfdfdf] rounded-[6px] bg-[#fff] w-full shadow-sm flex items-center justify-start gap-x-[12px] transition-all duration-700 ease-in-out"
+            style={{
+              opacity: showUserInfo ? 1 : 0,
+              transform: showUserInfo ? "translateY(0)" : "translateY(10px)",
+            }}
+          >
             <div
-                className="border-[1px] p-[20px] border-[#dfdfdf] rounded-[6px] bg-[#fff] w-full shadow-sm flex items-center justify-start gap-x-[12px] transition-all duration-700 ease-in-out"
-                style={{
-                  opacity: showUserInfo ? 1 : 0,
-                  transform: showUserInfo ? 'translateY(0)' : 'translateY(10px)'
-                }}
-            >
-              <div
-                  className="w-[80px] aspect-square rounded-full bg-[#dfdfdf] bg-cover bg-center"
-                  style={user.profileImageUrl ? { backgroundImage: `url(${user.profileImageUrl})` } : {}}
-              ></div>
-              <div className="w-full flex flex-col gap-y-[1px]">
-              <span className="text-[18px] font-[500] text-[#01274F] leading-[130%] line-clamp-1">
+              className="w-[80px] aspect-square rounded-full bg-[#dfdfdf] bg-cover bg-center"
+              style={
+                user.profileImageUrl
+                  ? { backgroundImage: `url(${user.profileImageUrl})` }
+                  : {}
+              }
+            ></div>
+            <div className="w-full flex flex-col gap-y-[1px]">
+              <span className="text-[18px] font-[500] text-[#01274F] leading-[155%] line-clamp-1">
                 {user.nickname}
               </span>
-                <span className="text-[15px] font-[500] text-[#01274F] leading-[150%] line-clamp-1 tracking-[-0.8px]">
-                나의 한마디 : 아자아자 화이팅!! {/* 이 부분은 User DTO에 필드 추가 필요 */}
-              </span>
-                <span className="text-[15px] font-[500] text-[#01274F] leading-[130%] line-clamp-1 tracking-[-0.8px]">
+              <span className="text-[15px] font-[500] text-[#01274F] leading-[155%] line-clamp-1 tracking-[-0.8px]">
                 {user.email}
               </span>
-              </div>
-            </div>
-
-            {/* IGO 설정 링크 */}
-            <Link
-                className="hover:opacity-[0.7] border-[1px] p-[20px] border-[#dfdfdf] rounded-[6px] bg-[#fff] w-full shadow-sm flex justify-between items-center transition-all duration-700 ease-in-out"
-                href="/setting"
-                style={{
-                  opacity: showIgoSettings ? 1 : 0,
-                  transform: showIgoSettings ? 'translateY(0)' : 'translateY(10px)'
-                }}
-            >
-              <p className="text-[18px] font-[500] text-[#01274F] leading-[130%] line-clamp-1">
-                IGO 설정
-              </p>
-              <img className="w-[24px]" src="/icon/setting.svg" alt="setting icon" />
-            </Link>
-
-            <div
-              className="w-full flex gap-x-[15px] transition-all duration-700 ease-in-out"
-              style={{
-                opacity: showButtons ? 1 : 0,
-                transform: showButtons ? 'translateY(0)' : 'translateY(10px)'
-              }}
-            >
-              {/* 로그아웃 버튼 */}
-              <button
-                  onClick={openLogoutPopup}
-                  className="hover:opacity-[0.7] border-[1px] p-[20px] border-[#dfdfdf] rounded-[6px] bg-[#fff] w-full shadow-sm flex justify-center items-center"
-              >
-                <p className="text-[17px] font-[500] text-[#01274F] leading-[130%] line-clamp-1">
-                  로그아웃
-                </p>
-              </button>
-              {/* 회원탈퇴 버튼 */}
-              <button
-                  onClick={openWithdrawPopup}
-                  className="hover:opacity-[0.7] border-[1px] p-[20px] border-[#dfdfdf] rounded-[6px] bg-[#fff] w-full shadow-sm flex justify-center items-center"
-              >
-                <p className="text-[17px] font-[500] text-[#ff2f01] leading-[130%] line-clamp-1">
-                  회원탈퇴
-                </p>
-              </button>
+              <span className="text-[15px] font-[500] text-[#01274F] leading-[155%] line-clamp-1 tracking-[-0.8px]">
+                프로 도착러!!{" "}
+                <span className="text-[11px] ">&nbsp;가 되고 싶다...</span>
+              </span>
             </div>
           </div>
+
+          {/* IGO 설정 링크 */}
+          <Link
+            className="hover:opacity-[0.7] border-[1px] p-[20px] border-[#dfdfdf] rounded-[6px] bg-[#fff] w-full shadow-sm flex justify-between items-center transition-all duration-700 ease-in-out"
+            href="/setting"
+            style={{
+              opacity: showIgoSettings ? 1 : 0,
+              transform: showIgoSettings ? "translateY(0)" : "translateY(10px)",
+            }}
+          >
+            <p className="text-[18px] font-[500] text-[#01274F] leading-[130%] line-clamp-1">
+              IGO 설정
+            </p>
+            <img
+              className="w-[24px]"
+              src="/icon/setting.svg"
+              alt="setting icon"
+            />
+          </Link>
+
+          <div
+            className="w-full flex gap-x-[15px] transition-all duration-700 ease-in-out"
+            style={{
+              opacity: showButtons ? 1 : 0,
+              transform: showButtons ? "translateY(0)" : "translateY(10px)",
+            }}
+          >
+            {/* 로그아웃 버튼 */}
+            <button
+              onClick={openLogoutPopup}
+              className="hover:opacity-[0.7] border-[1px] p-[20px] border-[#dfdfdf] rounded-[6px] bg-[#fff] w-full shadow-sm flex justify-center items-center"
+            >
+              <p className="text-[17px] font-[500] text-[#01274F] leading-[130%] line-clamp-1">
+                로그아웃
+              </p>
+            </button>
+            {/* 회원탈퇴 버튼 */}
+            <button
+              onClick={openWithdrawPopup}
+              className="hover:opacity-[0.7] border-[1px] p-[20px] border-[#dfdfdf] rounded-[6px] bg-[#fff] w-full shadow-sm flex justify-center items-center"
+            >
+              <p className="text-[17px] font-[500] text-[#ff2f01] leading-[130%] line-clamp-1">
+                회원탈퇴
+              </p>
+            </button>
+          </div>
         </div>
-
-        {/* 로그아웃 팝업 */}
-        <LogoutPopup
-          isOpen={showLogoutPopup}
-          onConfirm={handleLogout}
-          onCancel={closePopups}
-        />
-
-        {/* 회원탈퇴 팝업 */}
-        <WithdrawPopup
-          isOpen={showWithdrawPopup}
-          onConfirm={handleDeleteAccount}
-          onCancel={closePopups}
-        />
       </div>
+
+      {/* 로그아웃 팝업 */}
+      <LogoutPopup
+        isOpen={showLogoutPopup}
+        onConfirm={handleLogout}
+        onCancel={closePopups}
+      />
+
+      {/* 회원탈퇴 팝업 */}
+      <WithdrawPopup
+        isOpen={showWithdrawPopup}
+        onConfirm={handleDeleteAccount}
+        onCancel={closePopups}
+      />
+    </div>
   );
 }

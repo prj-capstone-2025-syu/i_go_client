@@ -128,15 +128,16 @@ export default function Home() {
                     : {}
                 }
               ></div>
-              <div className="w-full flex flex-col gap-y-[1px]">
-                <span className="text-[18px] font-[500] text-[#01274F] leading-[130%] line-clamp-1">
-                  {user.nickname || "사용자"}
+              <div className="w-full flex flex-col gap-y-[1px] ">
+                <span className="text-[18px] font-[500] text-[#01274F] leading-[155%] line-clamp-1">
+                  {user.nickname || "사용자 정보 없음"}
                 </span>
-                <span className="text-[15px] font-[500] text-[#01274F] leading-[150%] line-clamp-1 tracking-[-0.8px]">
-                  나의 한마디 : 아자아자 화이팅!!
-                </span>
-                <span className="text-[15px] font-[500] text-[#01274F] leading-[130%] line-clamp-1 tracking-[-0.8px]">
+                <span className="text-[15px] font-[500] text-[#01274F] leading-[155%] line-clamp-1 tracking-[-0.8px]">
                   {user.email || "이메일 정보 없음"}
+                </span>
+                <span className="text-[15px] font-[500] text-[#01274F] leading-[155%] line-clamp-1 tracking-[-0.8px]">
+                  프로 도착러!!{" "}
+                  <span className="text-[11px] ">&nbsp;가 되고 싶다...</span>
                 </span>
               </div>
               <img className="w-[24px]" src="/icon/edit.svg" alt="edit" />
