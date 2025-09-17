@@ -313,7 +313,7 @@ const ChatInterface = () => {
 
     await sleep(1000);
     addMessage(
-      "반복되는 일상은 루틴으로 ↩️\n한 번만 등록하면 돼요!",
+      "출발 전 필요한 준비과정을 잔소리 목록에↩️\n등록하면 아이고가 잔소리 해드려요! ",
       aiPartner
     );
 
