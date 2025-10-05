@@ -35,6 +35,7 @@ export default function Home() {
   // 애니메이션 효과를 위한 상태
   const [showUserInfo, setShowUserInfo] = useState(false);
   const [showRoutineLink, setShowRoutineLink] = useState(false);
+  const [showChallengeLink, setShowChallengeLink] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
 
   useEffect(() => {
@@ -77,10 +78,10 @@ export default function Home() {
       setTimeout(() => setShowUserInfo(true), 100);
 
       // 잔소리 목록 링크 표시
-      setTimeout(() => setShowRoutineLink(true), 300);
-
+      setTimeout(() => setShowRoutineLink(true), 200);
+      setTimeout(() => setShowChallengeLink(true), 300);
       // 알림 섹션 표시
-      setTimeout(() => setShowNotifications(true), 500);
+      setTimeout(() => setShowNotifications(true), 400);
     }
   }, [loading]);
 
@@ -152,10 +153,24 @@ export default function Home() {
               transform: showRoutineLink ? "translateY(0)" : "translateY(10px)",
             }}
           >
-            <p className="text-[18px] font-[500] text-[#01274F] leading-[130%] line-clamp-1">
+            <p className="text-[18px] font-[500] text-[#01274F] leading-[130%] line-clamp-1 hover:!opacity-[0.7]">
               나의 잔소리 목록 설정하기
             </p>
             <img className="w-[24px]" src="/icon/setting.svg" alt="setting" />
+          </Link>
+          <Link
+            className="hover:opacity-[0.7] border-[1px] p-[20px] border-[#dfdfdf] rounded-[6px] bg-[#fff] w-full shadow-sm flex justify-between items-center transition-all duration-700 ease-in-out"
+            href="/challenge"
+            style={{
+              opacity: showChallengeLink ? 1 : 0,
+              transform: showChallengeLink
+                ? "translateY(0)"
+                : "translateY(10px)",
+            }}
+          >
+            <p className="text-[18px] font-[500] text-[#01274F] leading-[130%] line-clamp-1">
+              노지각 챌린지
+            </p>
           </Link>
           {/* 알람 목록 */}
           <div
