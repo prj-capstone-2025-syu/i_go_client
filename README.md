@@ -60,7 +60,7 @@ I-GO는 계획적으로 살고 싶지만 아침잠이 많고, 외출 준비에 �
 
 ## 개발팀 소개 🧑‍🤝‍🧑
 
-| 이정민(팀장) | 김재현 | 이서진 | 오승은 | 권승오 |
+| 이정민 | 김재현 | 이서진 | 오승은 | 권승오 |
 | :---: | :---: | :---: | :---: | :---: |
 | [@Jungmin](https://github.com/BBongDDa) | [@jaehyun](https://github.com/kod0406) | [@seojin](https://github.com/selenophile15) | [@seungeun](https://github.com/ggumdols) | [@seungoh](https://github.com/) |
 | 컴퓨터공학전공 | 컴퓨터공학전공 | 컴퓨터공학전공 | 컴퓨터공학전공 | 컴퓨터공학전공 |
