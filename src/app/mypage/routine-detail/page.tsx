@@ -249,7 +249,7 @@ function RoutineDetailContent() {
                     잔소리 목록
                   </h2>
 
-                  <div id="routine-contents" className="flex flex-col-reverse">
+                  <div id="routine-contents" className="flex flex-col">
                     {routineItems.map((routine) => (
                       <div
                         key={routine.id}
