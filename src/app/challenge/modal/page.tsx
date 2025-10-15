@@ -21,4 +21,9 @@ const Modal: React.FC<ModalProps> = ({ icon, challengeday, lastday }) => {
     </div>
   );
 };
-export default Modal;
+
+export default function Page({ searchParams }: { searchParams: any }) {
+  const { icon, challengeday, lastday } = searchParams || {};
+
+  return <Modal icon={icon} challengeday={challengeday} lastday={lastday} />;
+}
