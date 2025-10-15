@@ -85,8 +85,22 @@ export default function Home() {
     }
   }, [loading]);
 
-  const formatDateTime = (dateTimeString: string) => {
-    const date = new Date(dateTimeString);
+  const formatDateTime = (dateTime: string | number[]) => {
+    let date: Date;
+    if (Array.isArray(dateTime)) {
+      // [year, month, day, hour, minute, second, nano]
+      // month는 0-based가 아니라 1-based이므로 그대로 사용
+      date = new Date(
+        dateTime[0], // year
+        dateTime[1] - 1, // month (0-based)
+        dateTime[2], // day
+        dateTime[3], // houry
+        dateTime[4], // minute
+        dateTime[5] // second
+      );
+    } else {
+      date = new Date(dateTime);
+    }
     const year = date.getFullYear();
     const month = (date.getMonth() + 1).toString().padStart(2, "0");
     const day = date.getDate().toString().padStart(2, "0");
