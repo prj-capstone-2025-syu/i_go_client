@@ -1,8 +1,10 @@
+# Ci/CD 테스트
+
 name: Frontend Next.js Blue-Green Deploy
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
 
 jobs:
   build-and-deploy:
@@ -21,8 +23,8 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
-          cache: 'npm'
+          node-version: "18"
+          cache: "npm"
 
       - name: Generate environment files from secrets
         run: |
@@ -30,7 +32,7 @@ jobs:
           cat <<EOF > .env.local
           ${{ secrets.FRONTEND_ENV_LOCAL }}
           EOF
-          
+
           # process.env 생성 (필요한 경우)
           cat <<EOF > process.env
           ${{ secrets.FRONTEND_PROCESS_ENV }}
@@ -66,7 +68,7 @@ jobs:
           script: |
             cd /home/ubuntu/igo
             sudo docker load -i frontend-image.tar
-            
+
             # 현재 활성화된 포트 확인
             if ! grep -q "3001" ${{ env.NGINX_TARGET_FILE }}; then
               ACTIVE_CONTAINER=${{ env.CONTAINER_BLUE }}
@@ -79,17 +81,17 @@ jobs:
             fi
 
             echo "Frontend - Active: $ACTIVE_CONTAINER, Deploying: $NEW_CONTAINER to port $NEW_PORT"
-            
+
             # 새 컨테이너 시작
             sudo docker run -d \
               --name $NEW_CONTAINER \
               -p $NEW_PORT:3000 \
               --restart unless-stopped \
               ${{ env.IMAGE_NAME }}:${{ github.sha }}
-            
+
             echo "Waiting for frontend health check..."
             sleep 20
-            
+
             # 헬스체크 (Next.js 루트 페이지 확인)
             if curl -f http://localhost:$NEW_PORT; then
               echo "Frontend health check passed. Switching traffic..."
