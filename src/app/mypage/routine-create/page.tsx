@@ -3,6 +3,7 @@ import NavBar from "@/components/common/topNav";
 import React, { useState } from "react";
 import { createRoutine } from "@/api/routineApi"; // API 함수 import
 import { useRouter } from "next/navigation"; // 페이지 이동을 위한 hook
+import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 
 interface RoutineItem {
   id: number;
@@ -99,19 +100,22 @@ export default function RoutineFormPage() {
       return;
     }
 
+    // index==0을 제외한 목록
+    const filteredRoutineItems = routineItems.slice(1);
+
     // 잔소리 항목이 하나도 없는 경우 체크
     if (routineItems.length === 0) {
       setError("최소 하나의 잔소리를 추가해주세요.");
       return;
     }
 
-    if (routineItems.some((item) => !item.name.trim() || !item.time.trim())) {
+    if (filteredRoutineItems.some((item) => !item.name.trim() || !item.time.trim())) {
       setError("모든 잔소리의 이름과 시간을 입력해주세요.");
       return;
     }
 
     // handleChange에 의해 설정된 timeError가 있는지 확인
-    if (routineItems.some((item) => item.timeError)) {
+    if (filteredRoutineItems.some((item) => item.timeError)) {
       setError(
         "시간 입력 값 중 유효하지 않은 항목이 있습니다. 각 항목 아래의 메시지를 확인해주세요."
       );
@@ -124,9 +128,10 @@ export default function RoutineFormPage() {
       // API 호출 형식에 맞게 데이터 준비
       const routineData = {
         title: title,
-        items: routineItems.map((item) => ({
+        items: filteredRoutineItems.map((item, index) => ({
           name: item.name,
           time: item.time,
+          order: index + 1,
         })),
       };
 
@@ -141,6 +146,21 @@ export default function RoutineFormPage() {
       setIsLoading(false);
     }
   };
+
+  //드래그앤드롭 완료 시 순서 바꾸기
+  const handleDragEnd = (result: any) => {
+    if (!result.destination) return;
+
+    const items = Array.from(routineItems);
+    const [removed] = items.splice(result.source.index, 1);
+    items.splice(result.destination.index, 0, removed);
+
+    setRoutineItems(items);
+  };
+
+  const [ routines, setRoutines ] = useState([
+    { id: 1, order: 1, time: ''}
+  ]);
 
   return (
     <div className="flex flex-col w-full h-full">
@@ -178,81 +198,199 @@ export default function RoutineFormPage() {
                     잔소리 목록
                   </h2>
 
-                  <div id="routine-contents" className="flex flex-col-reverse">
-                    {routineItems.map((item) => (
-                      <div
-                        key={item.id}
-                        className="igo-form-routine-info-wrap mb-[15px] border-b border-gray-300 pb-6"
-                      >
-                        <div className="flex w-full justify-between items-center gap-[20px]">
-                          <div className="igo-form-input-wrap w-full">
-                            <div className="igo-form-input">
-                              <h3 className="text-[17px] tracking-[-0.8px] font-medium mb-1">
-                                잔소리
-                              </h3>
-                              <div className="flex gap-8 items-center">
-                                <input
-                                  type="text"
-                                  name="name"
-                                  required
-                                  value={item.name}
-                                  onChange={(e) => handleChange(item.id, e)}
-                                  placeholder="잔소리를 입력하세요"
-                                  className="border-[1px] border-[#dfdfdf] bg-[#fff] px-[10px] py-[6px] rounded-[4px] w-full shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
-                                />
-                              </div>
-                            </div>
-                          </div>
+                  <DragDropContext onDragEnd={handleDragEnd}>
+                    <Droppable droppableId="routine-list">
+                      {(provided) => (
+                        <div id="routine-contents" className="flex flex-col" {...provided.droppableProps} ref={provided.innerRef}>
+                        {routineItems.map((item, index) => 
+                          index === 0 ? (
+                            <div
+                                key={item.id}
+                                className="igo-form-routine-info-wrap mb-[15px] border-b border-gray-300 pb-6"
+                              >
+                                <div className="flex w-full justify-between items-center gap-[20px]">
+                                  <div className="igo-form-input-wrap max-w-[40px]">
+                                      <div className="igo-form-input">
+                                        <h3 className="text-[16px] tracking-[-0.8px] font-medium mb-1">
+                                          순서
+                                        </h3>
+                                        <div className="flex gap-8 items-center">
+                                          <p className="px-[10px] py-[6px] rounded-[4px] w-full select-none">
+                                            {index}
+                                          </p>
+                                        </div>
+                                      </div>
+                                    </div>
+                                    
+                                  <div className="igo-form-input-wrap w-full">
+                                    <div className="igo-form-input">
+                                      <h3 className="text-[17px] tracking-[-0.8px] font-medium mb-1">
+                                        잔소리
+                                      </h3>
+                                      <div className="flex gap-8 items-center">
+                                        <input
+                                          type="text"
+                                          name="name"
+                                          required
+                                          disabled={true}
+                                          value={item.name}
+                                          onChange={(e) => handleChange(item.id, e)}
+                                          placeholder="잔소리를 입력하세요"
+                                          className="border-[1px] border-[#dfdfdf] bg-[#fff] px-[10px] py-[6px] rounded-[4px] w-full shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                                        />
+                                      </div>
+                                    </div>
+                                  </div>
 
-                          <div className="igo-form-input-wrap max-w-[90px] relative">
-                            <div className="igo-form-input">
-                              <h3 className="text-[17px] tracking-[-0.8px] font-medium mb-1">
-                                수행시간 (분)
-                              </h3>
-                              <div className="flex gap-8 items-center">
-                                <input
-                                  type="number"
-                                  name="time"
-                                  required
-                                  value={item.time}
-                                  onChange={(e) => handleChange(item.id, e)}
-                                  placeholder="10"
-                                  className={`border-[1px] bg-[#fff] px-[10px] py-[6px] rounded-[4px] w-full shadow-sm focus:ring-indigo-500 focus:border-indigo-500 ${
-                                    item.timeError
-                                      ? "border-red-500"
-                                      : "border-[#dfdfdf]"
-                                  }`}
-                                />
-                              </div>
-                              {item.timeError && (
-                                <div
-                                  className="absolute bg-white border border-red-500 text-red-700 px-3 py-3 rounded-md shadow-lg text-xs z-10 whitespace-nowrap"
-                                  style={{ top: "calc(100% + 5px)", left: "0" }}
-                                >
-                                  {item.timeError}
-                                  <div
-                                    className="absolute w-2 h-2 bg-white border-l border-t border-red-500 transform rotate-45"
-                                    style={{ top: "-4px", left: "15px" }}
-                                  ></div>
+                                  <div className="igo-form-input-wrap max-w-[90px] relative">
+                                    <div className="igo-form-input">
+                                      <h3 className="text-[17px] tracking-[-0.8px] font-medium mb-1">
+                                        수행시간 (분)
+                                      </h3>
+                                      <div className="flex gap-8 items-center">
+                                        <input
+                                          type="number"
+                                          name="time"
+                                          required
+                                          disabled={true}
+                                          value={item.time}
+                                          onChange={(e) => handleChange(item.id, e)}
+                                          placeholder="10"
+                                          className={`border-[1px] bg-[#fff] px-[10px] py-[6px] rounded-[4px] w-full shadow-sm focus:ring-indigo-500 focus:border-indigo-500 ${
+                                            item.timeError
+                                              ? "border-red-500"
+                                              : "border-[#dfdfdf]"
+                                          }`}
+                                        />
+                                      </div>
+                                      {item.timeError && (
+                                        <div
+                                          className="absolute bg-white border border-red-500 text-red-700 px-3 py-3 rounded-md shadow-lg text-xs z-10 whitespace-nowrap"
+                                          style={{ top: "calc(100% + 5px)", left: "0" }}
+                                        >
+                                          {item.timeError}
+                                          <div
+                                            className="absolute w-2 h-2 bg-white border-l border-t border-red-500 transform rotate-45"
+                                            style={{ top: "-4px", left: "15px" }}
+                                          ></div>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  <div className="text-right">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleRemoveRoutineItem(item.id)}
+                                      disabled={true}
+                                      className="bg-red-500 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded text-sm shadow-md whitespace-nowrap disabled:!bg-[#dfdfdf]"
+                                    >
+                                      삭제
+                                    </button>
+                                  </div>
                                 </div>
-                              )}
-                            </div>
-                          </div>
+                              </div>
+                          ) : (
+                          <Draggable
+                            key={item.id}
+                            draggableId={item.id.toString()}
+                            index={index}
+                          >
+                            {(provided) => (
+                              <div
+                                ref={provided.innerRef}
+                                {...provided.draggableProps}
+                                {...provided.dragHandleProps}
+                                className="igo-form-routine-info-wrap mb-[15px] border-b border-gray-300 pb-6"
+                              >
+                                <div className="flex w-full justify-between items-center gap-[20px]">
+                                  <div className="igo-form-input-wrap max-w-[40px]">
+                                      <div className="igo-form-input">
+                                        <h3 className="text-[16px] tracking-[-0.8px] font-medium mb-1">
+                                          순서
+                                        </h3>
+                                        <div className="flex gap-8 items-center">
+                                          <p className="px-[10px] py-[6px] rounded-[4px] w-full select-none">
+                                            {index}
+                                          </p>
+                                        </div>
+                                      </div>
+                                    </div>
+                                    
+                                  <div className="igo-form-input-wrap w-full">
+                                    <div className="igo-form-input">
+                                      <h3 className="text-[17px] tracking-[-0.8px] font-medium mb-1">
+                                        잔소리
+                                      </h3>
+                                      <div className="flex gap-8 items-center">
+                                        <input
+                                          type="text"
+                                          name="name"
+                                          required
+                                          value={item.name}
+                                          onChange={(e) => handleChange(item.id, e)}
+                                          placeholder="잔소리를 입력하세요"
+                                          className="border-[1px] border-[#dfdfdf] bg-[#fff] px-[10px] py-[6px] rounded-[4px] w-full shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                                        />
+                                      </div>
+                                    </div>
+                                  </div>
 
-                          <div className="text-right">
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveRoutineItem(item.id)}
-                              disabled={item.disabled}
-                              className="bg-red-500 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded text-sm shadow-md whitespace-nowrap disabled:!bg-[#dfdfdf]"
-                            >
-                              삭제
-                            </button>
-                          </div>
-                        </div>
+                                  <div className="igo-form-input-wrap max-w-[90px] relative">
+                                    <div className="igo-form-input">
+                                      <h3 className="text-[17px] tracking-[-0.8px] font-medium mb-1">
+                                        수행시간 (분)
+                                      </h3>
+                                      <div className="flex gap-8 items-center">
+                                        <input
+                                          type="number"
+                                          name="time"
+                                          required
+                                          value={item.time}
+                                          onChange={(e) => handleChange(item.id, e)}
+                                          placeholder="10"
+                                          className={`border-[1px] bg-[#fff] px-[10px] py-[6px] rounded-[4px] w-full shadow-sm focus:ring-indigo-500 focus:border-indigo-500 ${
+                                            item.timeError
+                                              ? "border-red-500"
+                                              : "border-[#dfdfdf]"
+                                          }`}
+                                        />
+                                      </div>
+                                      {item.timeError && (
+                                        <div
+                                          className="absolute bg-white border border-red-500 text-red-700 px-3 py-3 rounded-md shadow-lg text-xs z-10 whitespace-nowrap"
+                                          style={{ top: "calc(100% + 5px)", left: "0" }}
+                                        >
+                                          {item.timeError}
+                                          <div
+                                            className="absolute w-2 h-2 bg-white border-l border-t border-red-500 transform rotate-45"
+                                            style={{ top: "-4px", left: "15px" }}
+                                          ></div>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  <div className="text-right">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleRemoveRoutineItem(item.id)}
+                                      disabled={item.disabled}
+                                      className="bg-red-500 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded text-sm shadow-md whitespace-nowrap disabled:!bg-[#dfdfdf]"
+                                    >
+                                      삭제
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </Draggable>
+                        ))}
+                        {provided.placeholder}
                       </div>
-                    ))}
-                  </div>
+                      )}
+                    </Droppable>
+                  </DragDropContext>
                   <button
                     id="add-routine-btn"
                     type="button"
