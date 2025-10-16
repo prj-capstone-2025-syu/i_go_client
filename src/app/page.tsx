@@ -12,7 +12,7 @@ import {
 } from "@/api/scheduleApi";
 import { getRoutineById } from "@/api/routineApi";
 import { sendFCMTokenToServer } from "@/api/userApi";
-import { getMessaging, getToken, onMessage } from "firebase/messaging";
+import { getMessaging, getToken } from "firebase/messaging";
 import { app } from "@/utils/firebase";
 import { calculateAllTransportTimes } from "@/api/transportApi"; // 이동시간 API
 
@@ -38,6 +38,8 @@ interface ScheduleType {
   destinationX?: number | null; // 목적지 X 좌표
   destinationY?: number | null; // 목적지 Y 좌표
   startLocation?: string | null; // 출발지 명칭
+  routineStartTime?: string | null; // 백엔드에서 계산된 루틴 시작 시간
+  routineEndTime?: string | null; // 백엔드에서 계산된 루틴 종료 시간
 }
 
 interface RoutineInfo {
@@ -153,13 +155,6 @@ const Home: FC = () => {
               console.log("FCM Token:", currentToken);
               await sendFCMTokenToServer(currentToken);
               console.log("FCM token sent to server.");
-
-              // 포그라운드 메시지 핸들러는 등록하지만 알림은 표시하지 않음
-              onMessage(messaging, (payload) => {
-                // 포그라운드 메시지 수신 시 콘솔에만 기록하고 알림 표시는 하지 않음
-                console.log("Foreground message received:", payload);
-                // 백그라운드에서만 알림이 표시되도록 함
-              });
             } else {
               console.log(
                 "No registration token available. Request permission to generate one."
@@ -829,7 +824,7 @@ const Home: FC = () => {
                       currentSchedule &&
                       currentSchedule.startTime ? (
                         (() => {
-                          let accumulatedDurationMinutes = 0;
+                          // let accumulatedDurationMinutes = 0;
                           const scheduleStartTimeDate = new Date(
                             currentSchedule.startTime
                           );
@@ -845,18 +840,32 @@ const Home: FC = () => {
                               </p>
                             );
                           }
+                           // 백엔드에서 제공하는 routineStartTime 사용
+                                let routineStartTime: Date;
+                                if (currentSchedule.routineStartTime) {
+                                  // 백엔드에서 계산된 루틴 시작 시간 사용
+                                  routineStartTime = new Date(currentSchedule.routineStartTime);
+                                  console.log("백엔드에서 제공한 루틴 시작 시간 사용:", routineStartTime);
+                                  console.log("현재 시간:", currentTime);
+                                } else {
+                                  // 백엔드에서 제공하지 않는 경우 프론트엔드에서 계산 (fallback)
+                                  const totalRoutineDuration = currentRoutineDetails.items.reduce((sum, item) => sum + item.durationMinutes, 0);
+                                  routineStartTime = new Date(scheduleStartTimeDate.getTime() - totalRoutineDuration * 60000);
+                                  console.log("프론트엔드에서 계산한 루틴 시작 시간:", routineStartTime);
+                                }
+
+                                let accumulatedDurationMinutes = 0;
 
                           return currentRoutineDetails.items.map((item) => {
-                            const itemStartTime = new Date(
-                              scheduleStartTimeDate.getTime() +
-                                accumulatedDurationMinutes * 60000
-                            );
+                            const itemStartTime = new Date(routineStartTime.getTime() + accumulatedDurationMinutes * 60000);
                             const currentItemDuration = item.durationMinutes;
                             const itemEndTime = new Date(
                               itemStartTime.getTime() +
                                 currentItemDuration * 60000
                             );
                             accumulatedDurationMinutes += currentItemDuration;
+
+                            console.log(`아이템 "${item.name}": 시작=${itemStartTime.toLocaleTimeString()}, 종료=${itemEndTime.toLocaleTimeString()}, 현재=${currentTime.toLocaleTimeString()}`);
 
                             let itemStatus: "완료" | "진행 중" | "대기 중" =
                               "대기 중";
