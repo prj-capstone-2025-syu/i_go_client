@@ -24,6 +24,12 @@ export interface WeatherInfo {
   type: string;
 }
 
+export interface RoutineItem {
+  id: number;
+  name: string;
+  durationMinutes: number;
+}
+
 export interface RoutineNotificationData {
   name: string;
   subtitle?: string;
@@ -256,7 +262,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       if (error && typeof error === 'object' && 'response' in error) {
         const axiosError = error as { response: { data: unknown; status: number } };
         console.error('서버 오류 응답:', axiosError.response.data);
-        console.error('오류 상태 코드:', axiosError.response.status);
+        console.error('오류 상태 코��:', axiosError.response.status);
       }
     }
   }, []);
@@ -433,7 +439,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
             }
 
             // 백엔드와 동일한 로직: 전체 루틴 소요 시간 계산
-              const totalRoutineDuration = routineDetails.items.reduce((sum: number, item) => sum + item.durationMinutes, 0);
+            const totalRoutineDuration = routineDetails.items.reduce((sum: number, item: RoutineItem) => sum + item.durationMinutes, 0);
             // const totalRoutineDuration = routineDetails.items.reduce((sum, item) => sum + item.durationMinutes, 0);
             // 루틴 시작 시간 = 스케줄 시작 시간 - 전체 루틴 소요 시간
             const routineStartTime = new Date(scheduleStartTime.getTime() - totalRoutineDuration * 60000);
@@ -519,3 +525,4 @@ export const useNotification = () => {
   }
   return context;
 };
+
