@@ -433,8 +433,8 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
             }
 
             // 백엔드와 동일한 로직: 전체 루틴 소요 시간 계산
-              const totalRoutineDuration = routineDetails.items.reduce((sum, item) => sum + item.durationMinutes, 0);
-
+              const totalRoutineDuration = routineDetails.items.reduce((sum: number, item) => sum + item.durationMinutes, 0);
+            // const totalRoutineDuration = routineDetails.items.reduce((sum, item) => sum + item.durationMinutes, 0);
             // 루틴 시작 시간 = 스케줄 시작 시간 - 전체 루틴 소요 시간
             const routineStartTime = new Date(scheduleStartTime.getTime() - totalRoutineDuration * 60000);
 
