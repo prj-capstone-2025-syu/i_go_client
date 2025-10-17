@@ -185,6 +185,7 @@ const Home: FC = () => {
       // 두 API를 병렬로 호출하여 데이터 로딩 최적화
       Promise.all([getUpcomingSchedules(3), getLatestInProgressSchedule()])
         .then(([upcomingData, inProgressData]) => {
+          console.log("📊 [DEBUG] API 응답 데이터:", { upcomingData, inProgressData });
           // 다가오는 일정 설정
           const sortedSchedules = (upcomingData || []).sort(
             (a: ScheduleType, b: ScheduleType) =>
@@ -200,14 +201,16 @@ const Home: FC = () => {
                 new Date(schedule.startTime) > new Date()
             ) || null;
           setNearestSchedule(nearestUpcoming);
+          console.log("📊 [DEBUG] 가장 가까운 일정:", nearestUpcoming);
 
           // 진행 중인 일정 설정
           setInProgressSchedule(inProgressData);
-
+          console.log("📊 [DEBUG] 진행 중인 일정:", inProgressData);
           setScheduleDataReady(true);
           setIsLoading(false);
         })
         .catch((error) => {
+          console.error("❌ [ERROR] 일정 데이터 로딩 실패:", error);
           setIsLoading(false);
           setScheduleDataReady(true); // 에러 발생 시에도 로딩 상태 완료로 처리
         });

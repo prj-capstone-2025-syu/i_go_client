@@ -100,6 +100,8 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   // 루틴 시작 1시간 전 알림 처리 - 기본 UI 호환성을 위해 subtitle에 날씨 정보 포함
   const handleRoutineStartReminder = useCallback(
     (data: Record<string, string>, title: string, body: string) => {
+      // 백엔드에서 보내는 body 메시지를 그대로 사용
+      // "루틴 시작 1시간 전! 약속 시간까지 N분 남았습니다."
       let subtitleText = body;
 
       // 날씨 정보가 있으면 subtitle에 텍스트로 추가
@@ -109,7 +111,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         const humidity = data.humidity ?? '';
         const feelsLike = Math.round(parseFloat(data.feelsLike ?? '0'));
 
-        subtitleText = `${body}\n${desc} ${temp}°C (체감 ${feelsLike}°C)\n습도: ${humidity}%`;
+        subtitleText = `${body}\n\n${desc} ${temp}°C (체감 ${feelsLike}°C)\n습도: ${humidity}%`;
       }
 
       // 내부적으로는 WeatherInfo를 유지하지만 UI에는 subtitle만 전달
@@ -149,6 +151,17 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const handleRoutineItemStart = useCallback(
     (data: Record<string, string>, title: string, body: string) => {
       showRoutineNotification(title, body, 'ROUTINE_ITEM_START');
+
+      // FCM으로 받은 아이템은 체크된 것으로 표시하여 중복 알림 방지
+      // title은 "루틴명의 아이템명 할 시간입니다" 형식이므로 아이템명 추출
+      const itemNameMatch = title.match(/의 (.+) 할 시간입니다/);
+      if (data.scheduleId && itemNameMatch && itemNameMatch[1]) {
+        const itemName = itemNameMatch[1];
+        const itemKey = `item-${data.scheduleId}-${itemName}`;
+        setCheckedItems(prev => new Set(prev).add(itemKey));
+        console.log('FCM 알림 수신으로 체크된 아이템:', itemKey);
+      }
+
     },
     [showRoutineNotification]
   );
@@ -162,73 +175,28 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   );
 
   // 악천후 알림 처리
-  // 백엔드 전송 데이터 구조:
-  // {
-  //   type: "SEVERE_WEATHER_ALERT",
-  //   scheduleId: "일정 ID",
-  //   weatherDescription: "비" | "눈" | "폭우" 등,
-  //   newStartTime: "2025-10-14T09:30:00" (ISO 형식, 30분 앞당긴 시간),
-  //   isSevereWeather: "true",
-  //   severeWeatherDescription: "비",
-  //   originalStartTime: "2025-10-14T10:00:00",
-  //   originalEndTime: "2025-10-14T11:00:00",
-  //   newEndTime: "2025-10-14T10:30:00"
-  // }
   const handleSevereWeatherAlert = useCallback(
-    (data: Record<string, string>) => {
-      const weatherDesc = data.weatherDescription || data.severeWeatherDescription || '악천후';
-      const newStartTime = data.newStartTime || '';
-      const scheduleId = data.scheduleId;
+    (data: Record<string, string>, title?: string, body?: string) => {
+      // 백엔드에서 title과 body를 직접 전달받는 경우 그대로 사용
+      // "날씨 알림", "날씨가 안좋아요🥲, 조금 일찍 나가볼까요? 알람 시작 45분 전!"
+      const alertTitle = title || '날씨 알림';
+      const alertBody = body || '날씨가 안좋아요🥲, 조금 일찍 나가볼까요? 알람 시작 45분 전!';
 
-      // 시간 포맷팅 (ISO 형식 -> 한국어 시간 형식)
-      let formattedTime: string;
-      try {
-        const date = new Date(newStartTime);
-        formattedTime = date.toLocaleTimeString('ko-KR', {
-          hour: '2-digit',
-          minute: '2-digit',
-          hour12: true
-        });
-      } catch {
-        // 파싱 실패 시 원본 시간 사용
-        formattedTime = newStartTime;
-      }
-
-      const alertTitle = '⚠️ 악천후 알림';
-      const alertBody = `${weatherDesc}이(가) 예상됩니다.\n\n날씨 때문에 늦을 수 있으니\n출발 시간을 15분 앞당겼습니다.\n\n새로운 출발 시간: ${formattedTime}`;
-
-      console.log('악천후 알림 표시:', { scheduleId, weatherDesc, newStartTime, formattedTime });
+      console.log('악천후 알림 표시:', { scheduleId: data.scheduleId, title: alertTitle, body: alertBody });
       showRoutineNotification(alertTitle, alertBody, 'SEVERE_WEATHER_ALERT');
     },
     [showRoutineNotification]
   );
 
-
   // 교통 지연 알림 처리
   const handleTrafficDelayAlert = useCallback(
-    (data: Record<string, string>) => {
-      const delayReason = data.delayReason || '교통 지연';
-      const newStartTime = data.newStartTime || '';
-      const scheduleId = data.scheduleId;
+    (data: Record<string, string>, title?: string, body?: string) => {
+      // 백엔드에서 title과 body를 직접 전달받는 경우 그대로 사용
+      // "교통 알림", "교통 상황이 안 좋아요🥲, 조금 일찍 나가볼까요? 알람 시작 N분 전!"
+      const alertTitle = title || '교통 알림';
+      const alertBody = body || '교통 상황이 안 좋아요🥲, 조금 일찍 나가볼까요?';
 
-      // 시간 포맷팅 (ISO 형식 -> 한국어 시간 형식)
-      let formattedTime: string;
-      try {
-        const date = new Date(newStartTime);
-        formattedTime = date.toLocaleTimeString('ko-KR', {
-          hour: '2-digit',
-          minute: '2-digit',
-          hour12: true
-        });
-      } catch {
-        // 파싱 실패 시 원본 시간 사용
-        formattedTime = newStartTime;
-      }
-
-      const alertTitle = '🚦 교통 지연 알림';
-      const alertBody = `${delayReason}으로 인해 출발 시간이 변경되었습니다.\n\n새로운 출발 시간: ${formattedTime}`;
-
-      console.log('교통 지연 알림 표시:', { scheduleId, delayReason, newStartTime, formattedTime });
+      console.log('교통 지연 알림 표시:', { scheduleId: data.scheduleId, title: alertTitle, body: alertBody });
       showRoutineNotification(alertTitle, alertBody, 'TRAFFIC_DELAY_ALERT');
     },
     [showRoutineNotification]
@@ -262,7 +230,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       if (error && typeof error === 'object' && 'response' in error) {
         const axiosError = error as { response: { data: unknown; status: number } };
         console.error('서버 오류 응답:', axiosError.response.data);
-        console.error('오류 상태 코��:', axiosError.response.status);
+        console.error('오류 상태 코드:', axiosError.response.status);
       }
     }
   }, []);
@@ -343,8 +311,13 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
                   break;
 
                 case 'SEVERE_WEATHER_ALERT':
-                  // 악천후 알림 (data만 전달)
-                  handleSevereWeatherAlert(payload.data as Record<string, string>);
+                  // 악천후 알림 (title, body 전달)
+                  handleSevereWeatherAlert(payload.data as Record<string, string>, title, body);
+                  break;
+
+                case 'TRAFFIC_DELAY_ALERT':
+                  // 교통 지연 알림 (title, body 전달)
+                  handleTrafficDelayAlert(payload.data as Record<string, string>, title, body);
                   break;
 
                 default:
@@ -420,11 +393,24 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
             const now = new Date();
             const scheduleStartTime = new Date(inProgressSchedule.startTime);
 
+            // 백엔드와 동일한 로직: 전체 루틴 소요 시간 계산
+            const totalRoutineDuration = routineDetails.items.reduce((sum: number, item: RoutineItem) => sum + item.durationMinutes, 0);
+
+            // 루틴 시작 시간 = 스케줄 시작 시간 - 전체 루틴 소요 시간
+            const routineStartTime = new Date(scheduleStartTime.getTime() - totalRoutineDuration * 60000);
+
+            // 루틴이 이미 완료되었는지 확인 (현재 시간이 스케줄 시작 시간을 넘었으면 루틴 완료)
+            if (now >= scheduleStartTime) {
+              console.log('루틴이 이미 완료되었습니다. 알림을 표시하지 않습니다.');
+              return;
+            }
+
             // 루틴 첫 시작 알림 (한 번만)
             const scheduleKey = `schedule-${inProgressSchedule.id}`;
             if (
               !checkedItems.has(scheduleKey) &&
-              now.getTime() - scheduleStartTime.getTime() < 5 * 60000 // 5분 이내 시작된 경우만
+              now >= routineStartTime &&
+              now < scheduleStartTime
             ) {
               showRoutineNotification(routineDetails.name, '루틴 시간입니다.', 'GENERIC');
               setCheckedItems(prev => new Set(prev).add(scheduleKey));
@@ -438,12 +424,6 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
               });
             }
 
-            // 백엔드와 동일한 로직: 전체 루틴 소요 시간 계산
-            const totalRoutineDuration = routineDetails.items.reduce((sum: number, item: RoutineItem) => sum + item.durationMinutes, 0);
-            // const totalRoutineDuration = routineDetails.items.reduce((sum, item) => sum + item.durationMinutes, 0);
-            // 루틴 시작 시간 = 스케줄 시작 시간 - 전체 루틴 소요 시간
-            const routineStartTime = new Date(scheduleStartTime.getTime() - totalRoutineDuration * 60000);
-
             // 각 루틴 아이템의 시작 시간 계산 및 알림
             let accumulatedMinutes = 0;
             for (const item of routineDetails.items) {
@@ -451,16 +431,23 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
               const itemStartTime = new Date(
                 routineStartTime.getTime() + accumulatedMinutes * 60000
               );
-              const itemKey = `item-${inProgressSchedule.id}-${item.name}-${itemStartTime.getTime()}`;
+              const itemEndTime = new Date(
+                itemStartTime.getTime() + item.durationMinutes * 60000
+              );
 
-              // 지난 체크 이후 시작된 아이템이고 아직 알림을 보내지 않은 경우
+              // FCM 알림과 동일한 키 형식 사용 (타임스탬프 제거)
+              const itemKey = `item-${inProgressSchedule.id}-${item.name}`;
+
+              // 아이템 시작 시간이 되었고, 아직 종료되지 않았으며, 알림을 보내지 않은 경우
               if (
                 itemStartTime > lastCheckRef.current &&
                 itemStartTime <= now &&
+                now < itemEndTime &&
                 !checkedItems.has(itemKey)
               ) {
                 showRoutineNotification(item.name, '시작 시간입니다.', 'ROUTINE_ITEM_START');
                 setCheckedItems(prev => new Set(prev).add(itemKey));
+                console.log('프론트엔드 체크로 알림 표시:', itemKey);
                 break; // 가장 최근 아이템만 알림
               }
 
@@ -525,4 +512,3 @@ export const useNotification = () => {
   }
   return context;
 };
-
