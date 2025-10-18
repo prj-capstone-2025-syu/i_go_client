@@ -405,24 +405,8 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
               return;
             }
 
-            // 루틴 첫 시작 알림 (한 번만)
-            const scheduleKey = `schedule-${inProgressSchedule.id}`;
-            if (
-              !checkedItems.has(scheduleKey) &&
-              now >= routineStartTime &&
-              now < scheduleStartTime
-            ) {
-              showRoutineNotification(routineDetails.name, '루틴 시간입니다.', 'GENERIC');
-              setCheckedItems(prev => new Set(prev).add(scheduleKey));
-
-              // checkedRoutines 상수 활용 - 체크된 루틴 기록
-              setCheckedRoutines(prev => {
-                if (!prev.includes(routineDetails.name)) {
-                  return [...prev, routineDetails.name];
-                }
-                return prev;
-              });
-            }
+            // 루틴 첫 시작 알림 제거 - FCM으로만 받도록 수정
+            // 백엔드에서 ROUTINE_START_REMINDER를 보내므로 중복 제거
 
             // 각 루틴 아이템의 시작 시간 계산 및 알림
             let accumulatedMinutes = 0;
@@ -438,10 +422,14 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
               // FCM 알림과 동일한 키 형식 사용 (타임스탬프 제거)
               const itemKey = `item-${inProgressSchedule.id}-${item.name}`;
 
-              // 아이템 시작 시간이 되었고, 아직 종료되지 않았으며, 알림을 보내지 않은 경우
+              // 1. 현재 시간이 아이템 시작 시간 범위 내에 있어야 함 (±2분)
+              // 2. 현재 시간이 아이템 종료 시간 이전이어야 함
+              // 3. 이미 알림을 보낸 적이 없어야 함
+              const timeDiffMinutes = (now.getTime() - itemStartTime.getTime()) / 60000;
+              const isWithinStartWindow = timeDiffMinutes >= 0 && timeDiffMinutes <= 1; // 시작 후 1분 이내
+
               if (
-                itemStartTime > lastCheckRef.current &&
-                itemStartTime <= now &&
+                isWithinStartWindow &&
                 now < itemEndTime &&
                 !checkedItems.has(itemKey)
               ) {
