@@ -1,7 +1,7 @@
 "use client";
 import NavBar from "@/components/common/topNav";
 import Link from "next/link";
-import html2canvas from "html2canvas";
+import { toPng } from 'html-to-image';
 import saveAs from "file-saver";
 import { useRef, useState } from "react";
 import ProgressBar from "@ramonak/react-progress-bar"; //진행도 프로그래스바
@@ -52,17 +52,11 @@ export default function Home() {
 
   const handleDownload = async () => {
     if (!divRef.current) return;
-
     try {
-      const div = divRef.current;
-      const canvas = await html2canvas(div, { scale: 2 });
-      canvas.toBlob((blob) => {
-        if (blob !== null) {
-          saveAs(blob, "challenge.png");
-        }
-      });
-    } catch (error) {
-      console.error("저장에 실패하였습니다.", error);
+      const dataUrl = await toPng(divRef.current, { backgroundColor: '#f8fafc' });
+      saveAs(dataUrl, "challenge.png");
+    } catch (e) {
+      console.error("이미지 저장에 실패하였습니다.", e);
     }
   };
 
@@ -108,21 +102,22 @@ export default function Home() {
   const closeModal = () => setModalState(null);
 
   return (
-    <div className="flex flex-col w-full h-full" ref={divRef}>
+    <div className="flex flex-col w-full h-full">
       {/*header*/}
       <NavBar title="노지각 챌린지" link="/mypage"></NavBar>
 
       {/*main*/}
-      <div className="w-full max-h-full overflow-y-auto">
+      <div className="w-full max-h-full overflow-y-auto" ref={divRef}>
         <div className="pt-[24px] pb-[32px] px-[16px]">
+          <div className="flex justify-center">
+              <img src='/nolatechallenge.svg' alt="노지각 챌린지" style={{ height : 60 }}/>
+          </div>
           <div className="pb-[8px] flex justify-between">
-            <p className="text-[14px] leading-[130%] tracking-[-0.8px]">
-              달성률
-            </p>
+            <p className="text-[14px] leading-[130%] tracking-[-0.8px]">달성률</p>
             <p className="text-[14px] leading-[130%] tracking-[-0.8px]">5/10</p>
           </div>
           <div>
-            <AchievementBar achieved={50} goal={100} />
+            <AchievementBar achieved={40} goal={100} />
           </div>
         </div>
         <div
@@ -213,7 +208,7 @@ export default function Home() {
               ))}
             </div>
 
-            <div className="w-full h-[80px] flex justify-center gap-[30px] mb-[50px]">
+            <div className="w-full h-[80px] flex justify-center gap-[30px] mb-[30px]">
               {" "}
               {/* 910일차 */}
               {challengeState
@@ -242,13 +237,13 @@ export default function Home() {
             </div>
 
             {challengeState.every((v) => v) ? (
-              <div className="py-[10px] px-[5px] bg-[#FFFFFF] border-[2px] border-[#01274F] rounded-[7px] text-[#01274F] text-[15px] tracking-[-0.6px] font-[500]">
+              <div className="py-[10px] px-[5px] mb-[10px] bg-[#FFFFFF] border-[2px] border-[#01274F] rounded-[7px] text-[#01274F] text-[15px] tracking-[-0.6px] font-[500]">
                 <p className="text-center leading-[130%] tracking-[-0.8px]">
                   챌린지 성공!
                 </p>
               </div>
             ) : (
-              <div className="py-[10px] px-[5px] bg-[#FFFFFF] border-[2px] border-[#01274F] rounded-[7px] text-[#01274F] text-[15px] tracking-[-0.6px] font-[500]">
+              <div className="py-[10px] px-[5px] mb-[10px] bg-[#FFFFFF] border-[2px] border-[#01274F] rounded-[7px] text-[#01274F] text-[15px] tracking-[-0.6px] font-[500]">
                 <p className="text-center leading-[130%] tracking-[-0.8px]">
                   챌린지 실패!
                 </p>
