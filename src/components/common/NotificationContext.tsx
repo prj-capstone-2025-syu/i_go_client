@@ -391,48 +391,98 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
   // 초기 WebSocket 연결 (컴포넌트 마운트 시)
   useEffect(() => {
-    const token = localStorage.getItem('access_token') ||
-      document.cookie.split('; ').find(row => row.startsWith('access_token='))?.split('=')[1];
+    const checkFCMAndConnectWebSocket = async () => {
+      const token = localStorage.getItem('access_token') ||
+        document.cookie.split('; ').find(row => row.startsWith('access_token='))?.split('=')[1];
 
-    if (token) {
-      console.log('🔐 [초기화] 토큰 감지, WebSocket 연결 시작...');
-      connectWebSocket();
-    } else {
-      console.log('⚠️ [초기화] 토큰 없음, WebSocket 연결 안 함');
-    }
+      if (!token) {
+        console.log('⚠️ [초기화] 인증 토큰 없음, WebSocket 연결 안 함');
+        setHasToken(false);
+        return;
+      }
+
+      setHasToken(true);
+
+      try {
+        // FCM 지원 여부 확인
+        if (!('Notification' in window)) {
+          console.log('🔔 [FCM] 브라우저가 알림을 지원하지 않음 → WebSocket 연결');
+          connectWebSocket();
+          return;
+        }
+
+        // 알림 권한 확인 (요청하지 않고 현재 상태만 확인)
+        if (Notification.permission === 'denied') {
+          console.log('🔔 [FCM] 알림 권한 거부됨 → WebSocket 연결');
+          connectWebSocket();
+          return;
+        }
+
+        if (Notification.permission === 'default') {
+          console.log('🔔 [FCM] 알림 권한 미설정 → FCM 토큰 발급 시도');
+        }
+
+        // Firebase 동적 import 시도
+        const firebaseModule = await import('@/utils/firebase');
+        const messagingInstance = firebaseModule.messaging as import('firebase/messaging').Messaging | null;
+
+        if (!messagingInstance) {
+          console.log('🔔 [FCM] Firebase messaging 초기화 실패 → WebSocket 연결');
+          connectWebSocket();
+          return;
+        }
+
+        // FCM 토큰 발급 시도
+        const { getToken } = await import('firebase/messaging');
+        const fcmToken = await getToken(messagingInstance, {
+          vapidKey: 'BK6gC7kpp7i9gv1WMQuWsW_487xmyfsXWtE0DERzOUunoCWN3fzoJ0JwP3BIL_d4pYGcjlGxhjjmD59-0UGzoug'
+        });
+
+        if (fcmToken) {
+          console.log('✅ [FCM] FCM 토큰 발급 성공 → WebSocket 연결 안 함');
+          console.log('   FCM 토큰:', fcmToken.substring(0, 20) + '...');
+          // FCM 토큰이 있으면 WebSocket 연결하지 않음
+          return;
+        } else {
+          console.log('⚠️ [FCM] FCM 토큰 발급 실패 → WebSocket 연결');
+          connectWebSocket();
+        }
+      } catch (error) {
+        console.error('❌ [FCM] FCM 초기화 오류 → WebSocket 연결:', error);
+        connectWebSocket();
+      }
+    };
+
+    checkFCMAndConnectWebSocket();
   }, []); // 빈 의존성 배열 - 마운트 시 한 번만 실행
 
-  // 토큰 변경 감지 및 자동 연결/해제
+  // 로그아웃 감지 및 WebSocket 연결 해제
   useEffect(() => {
-    const checkToken = () => {
+    const checkLogout = () => {
       const token = localStorage.getItem('access_token') ||
         document.cookie.split('; ').find(row => row.startsWith('access_token='))?.split('=')[1];
 
       const tokenExists = !!token;
 
-      // 토큰 상태가 변경되었을 때만 처리
-      if (tokenExists !== hasToken) {
-        if (tokenExists) {
-          // 로그인됨 - WebSocket 연결
-          console.log('🔐 [Auth] 로그인 감지, WebSocket 연결 시작...');
-          setHasToken(true);
-          connectWebSocket();
-        } else {
-          // 로그아웃됨 - WebSocket 연결 해제
-          console.log('🔓 [Auth] 로그아웃 감지, WebSocket 연결 해제...');
-          setHasToken(false);
-          disconnectWebSocket();
-        }
+      // 토큰이 있었는데 없어진 경우 (로그아웃)
+      if (hasToken && !tokenExists) {
+        console.log('🔓 [Auth] 로그아웃 감지, WebSocket 연결 해제...');
+        setHasToken(false);
+        disconnectWebSocket();
+      } else if (!hasToken && tokenExists) {
+        // 토큰이 새로 생긴 경우 (로그인) - hasToken 상태만 업데이트
+        // WebSocket 연결은 초기 useEffect에서 FCM 체크 후 결정
+        setHasToken(true);
       }
     };
 
     // 주기적으로 토큰 상태 체크 (1초마다)
-    const intervalId = setInterval(checkToken, 1000);
+    const intervalId = setInterval(checkLogout, 1000);
 
     return () => {
       clearInterval(intervalId);
     };
-  }, [hasToken]); // connectWebSocket, disconnectWebSocket 제거하여 무한 루프 방지
+  }, [hasToken, disconnectWebSocket]); // disconnectWebSocket 추가
 
   // 컴포넌트 언마운트 시 WebSocket 정리
   useEffect(() => {
