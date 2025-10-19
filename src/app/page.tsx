@@ -12,10 +12,10 @@ import {
 } from "@/api/scheduleApi";
 import { getRoutineById } from "@/api/routineApi";
 import { sendFCMTokenToServer } from "@/api/userApi";
-import { getMessaging, getToken } from "firebase/messaging";
+import { getMessaging, getToken, onMessage } from "firebase/messaging";
 import { app } from "@/utils/firebase";
 import { calculateAllTransportTimes } from "@/api/transportApi"; // 이동시간 API
-
+import { useNotification } from "@/components/common/NotificationContext";
 import { Swiper, SwiperSlide } from "swiper/react"; //swiper 사용
 import "swiper/css"; //swiper 기본 스타일
 import "swiper/css/pagination"; //swiper pagination 스타일
@@ -59,6 +59,7 @@ interface RoutineItem {
 const Home: FC = () => {
   const [keyword, setKeyword] = useState("");
   const router = useRouter();
+  const { connectWebSocket } = useNotification();
 
   const [upcomingSchedules, setUpcomingSchedules] = useState<ScheduleType[]>(
     []
@@ -155,22 +156,32 @@ const Home: FC = () => {
               console.log("FCM Token:", currentToken);
               await sendFCMTokenToServer(currentToken);
               console.log("FCM token sent to server.");
+
+              // 포그라운드 메시지 핸들러는 등록하지만 알림은 표시하지 않음
+              onMessage(messaging, (payload) => {
+                // 포그라운드 메시지 수신 시 콘솔에만 기록하고 알림 표시는 하지 않음
+                console.log("Foreground message received:", payload);
+                // 백그라운드에서만 알림이 표시되도록 함
+              });
             } else {
-              console.log(
-                "No registration token available. Request permission to generate one."
-              );
+              // FCM 토큰 발급 실패 시 WebSocket으로 대체
+              console.log("FCM 토큰을 가져올 수 없습니다. WebSocket으로 연결합니다.");
+              connectWebSocket();
             }
           } else {
-            console.log("Unable to get permission to notify.");
+            console.log("알림 권한이 거부되었습니다. WebSocket으로 연결합니다.");
+            connectWebSocket();
           }
         } catch (error) {
-          console.error("An error occurred while retrieving token. ", error);
+          console.error("FCM 토큰 발급 중 오류 발생. WebSocket으로 연결합니다.", error);
+          // FCM 실패 시 WebSocket으로 폴백
+          connectWebSocket();
         }
       };
 
       requestPermissionAndToken();
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, connectWebSocket]);
 
   useEffect(() => {
     AOS.init();
@@ -848,13 +859,13 @@ const Home: FC = () => {
                                 if (currentSchedule.routineStartTime) {
                                   // 백엔드에서 계산된 루틴 시작 시간 사용
                                   routineStartTime = new Date(currentSchedule.routineStartTime);
-                                  console.log("백엔드에서 제공한 루틴 시작 시간 사용:", routineStartTime);
-                                  console.log("현재 시간:", currentTime);
+                                  //console.log("백엔드에서 제공한 루틴 시작 시간 사용:", routineStartTime);
+                                  //console.log("현재 시간:", currentTime);
                                 } else {
                                   // 백엔드에서 제공하지 않는 경우 프론트엔드에서 계산 (fallback)
                                   const totalRoutineDuration = currentRoutineDetails.items.reduce((sum, item) => sum + item.durationMinutes, 0);
                                   routineStartTime = new Date(scheduleStartTimeDate.getTime() - totalRoutineDuration * 60000);
-                                  console.log("프론트엔드에서 계산한 루틴 시작 시간:", routineStartTime);
+                                  //console.log("프론트엔드에서 계산한 루틴 시작 시간:", routineStartTime);
                                 }
 
                                 let accumulatedDurationMinutes = 0;
