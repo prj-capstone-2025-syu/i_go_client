@@ -107,10 +107,13 @@ const Home: FC = () => {
   // 1분마다 자동 리프레시
   const [refreshToken, setRefreshToken] = useState(0);
 
-  // 현재 표시할 일정을 결정하는 함수 (진행 중인 일정 > 다가오는 일정 순)
+    // 현재 표시할 일정을 결정하는 함수
+  // 진행 중인 일정만 반환 (루틴 시작 1시간 전부터 표시)
   const getCurrentSchedule = useCallback(() => {
-    return inProgressSchedule || nearestSchedule;
-  }, [inProgressSchedule, nearestSchedule]);
+    // inProgressSchedule이 있으면 반환
+    // null이면 null 반환 (nearestSchedule을 자동으로 표시하지 않음)
+    return inProgressSchedule;
+  }, [inProgressSchedule]);
 
   // 페이지 로드시 토큰 확인
   useEffect(() => {
@@ -1250,13 +1253,21 @@ const Home: FC = () => {
                   </div>
                 ) : upcomingSchedules.filter(
                     (schedule) =>
+                      // 진행 중인 일정에 표시되는 일정 제외
+                      schedule.id !== inProgressSchedule?.id &&
+                      // IN_PROGRESS 상태가 아닌 일정만
                       schedule.status !== "IN_PROGRESS" &&
+                      // 시작 시간이 현재보다 미래인 일정만
                       new Date(schedule.startTime) > new Date()
                   ).length > 0 ? (
                   upcomingSchedules
                     .filter(
                       (schedule) =>
+                        // 진행 중인 일정에 표시되는 일정 제외
+                        schedule.id !== inProgressSchedule?.id &&
+                        // IN_PROGRESS 상태가 아닌 일정만
                         schedule.status !== "IN_PROGRESS" &&
+                        // 시작 시간이 현재보다 미래인 일정만
                         new Date(schedule.startTime) > new Date()
                     )
                     .map((schedule) => (
