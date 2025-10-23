@@ -229,6 +229,15 @@ export default function Calendar() {
                     return selectedEvent && selectedEvent.id === arg.event.id ?
                         'selected-event' : '';
                   }}
+                  eventDidMount={(info) => {
+                    // 더블 클릭 리스너 추가
+                    info.el.ondblclick = () => {
+                      const eventId = info.event.id;
+                      if (eventId) {
+                        window.location.href = `/calendar/detail?id=${eventId}`;
+                      }
+                    };
+                  }}
               />
             </div>
           </div>
