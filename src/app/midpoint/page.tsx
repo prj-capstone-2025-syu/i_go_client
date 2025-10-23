@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Suspense } from "react";
 import NavBarMain from "@/components/common/topNavMain";
-import { sendSmartMidpointMessage, resetMidpointSession } from "@/api/midpointApi"; // API 함수
+import { sendSmartMidpointMessage, resetMidpointSession } from "@/api/midpointApi";
 
 
 interface Sender {
@@ -28,21 +28,19 @@ interface Message {
   actionsDisabled?: boolean;
 }
 
-// 백엔드 RecommendedStation DTO와 일치하는 타입
 interface RecommendedStationType {
   stationName: string;
   longitude: number;
   latitude: number;
-  uniqueLanes: string[]; // Set<String>은 배열로 받음
+  uniqueLanes: string[];
   laneCount: number;
 }
 
-// 백엔드 MidpointResponse DTO와 일치하는 타입
+
 interface MidpointResponseType {
   success: boolean;
   message: string;
-  recommendedStations?: RecommendedStationType[]; // Optional 배열
-  // midpointCoordinates, midpointAddress 는 필요 시 추가
+  recommendedStations?: RecommendedStationType[];
 }
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -106,7 +104,6 @@ const ChatInterface = () => {
         addMessage(messageText, currentUser);
 
         try {
-            // *** [수정] 'as MidpointResponseType' 추가 ***
             const response = await sendSmartMidpointMessage(messageText) as MidpointResponseType;
             await sleep(300);
 
@@ -162,8 +159,7 @@ const ChatInterface = () => {
     // 컴포넌트 마운트 시 세션 초기화
     useEffect(() => {
         handleResetSession();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []); // Mount effect, no need for handleResetSession in deps
+    }, []);
 
     // 메시지 목록 변경 시 스크롤 맨 아래로
     useEffect(() => {
@@ -232,7 +228,7 @@ const ChatInterface = () => {
     );
 };
 
-// --- 페이지 최종 렌더링 ---
+// --- 페이지 최종 렌더링? ---
 export default function ChatPage() {
     return (
         <Suspense fallback={<div>로딩 중...</div>}>
