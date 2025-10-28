@@ -54,6 +54,8 @@ interface NotificationContextType {
   checkedRoutines: string[];
   setCheckedRoutines: React.Dispatch<React.SetStateAction<string[]>>;
   sendAndroidFCMTokenToServer: (token: string) => Promise<void>;
+  connectWebSocket: () => void;
+  disconnectWebSocket: () => void;
 }
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
@@ -73,6 +75,11 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
   // 마지막으로 체크한 시간을 저장
   const lastCheckRef = useRef(new Date());
+
+  // WebSocket 관련 상태
+  const wsRef = useRef<WebSocket | null>(null);
+  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [isWebSocketConnected, setIsWebSocketConnected] = useState(false);
 
   const showNotification = useCallback((data: NotificationData) => {
     setNotificationData(data);
@@ -235,23 +242,315 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     }
   }, []);
 
-  // 토큰 체크 로직
-  useEffect(() => {
-    const checkToken = () => {
-      // 로컬 스토리지 또는 쿠키에서 access_token 확인
-      const token =
-        localStorage.getItem('access_token') ||
+  // WebSocket 연결 함수
+  const connectWebSocket = useCallback(() => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      console.log('WebSocket이 이미 연결되어 있습니다.');
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('access_token') ||
         document.cookie.split('; ').find(row => row.startsWith('access_token='))?.split('=')[1];
 
-      setHasToken(!!token);
+      if (!token) {
+        console.warn('⚠️ [WebSocket] 토큰이 없어 WebSocket 연결을 할 수 없습니다.');
+        setHasToken(false);
+        return;
+      }
+
+      setHasToken(true);
+
+      // 백엔드 서버 URL 사용 (프론트엔드가 아닌 백엔드로 연결)
+      const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+      const wsProtocol = backendUrl.startsWith('https') ? 'wss:' : 'ws:';
+      const wsHost = backendUrl.replace(/^https?:\/\//, '');
+      const wsUrl = `${wsProtocol}//${wsHost}/ws/notifications?token=${token}`;
+
+      console.log('🔌 [WebSocket] 연결 시도 중...', wsUrl);
+      const ws = new WebSocket(wsUrl);
+
+      ws.onopen = () => {
+        console.log('✅ [WebSocket] 연결 성공!');
+        setIsWebSocketConnected(true);
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const message = JSON.parse(event.data);
+          console.log('📨 [WebSocket] 메시지 수신:', message);
+
+          if (message.type === 'CONNECTION_SUCCESS') {
+            console.log('✅ [WebSocket] 서버 연결 확인:', message.message);
+            return;
+          }
+
+          // FCM과 동일한 알림 처리 로직
+          const title = message.title || message.data?.title || '알림';
+          const body = message.body || message.data?.body || '새로운 알림이 있습니다.';
+          const type = message.type || message.data?.type;
+          const data = message.data || {};
+
+          if (type) {
+            switch (type) {
+              case 'ROUTINE_START_REMINDER':
+                handleRoutineStartReminder(data, title, body);
+                break;
+              case 'delayed_routine_item':
+                handleDelayedRoutineItem(data, title, body);
+                break;
+              case 'SCHEDULE_START':
+                handleScheduleStart(data, title, body);
+                break;
+              case 'ROUTINE_ITEM_START':
+                handleRoutineItemStart(data, title, body);
+                break;
+              case 'SUPPLIES_REMINDER':
+                handleSuppliesReminder(data, title, body);
+                break;
+              case 'SEVERE_WEATHER_ALERT':
+                handleSevereWeatherAlert(data, title, body);
+                break;
+              case 'TRAFFIC_DELAY_ALERT':
+                handleTrafficDelayAlert(data, title, body);
+                break;
+              default:
+                showRoutineNotification(title, body, 'GENERIC');
+            }
+          } else {
+            showRoutineNotification(title, body, 'GENERIC');
+          }
+        } catch (error) {
+          console.error('❌ [WebSocket] 메시지 처리 오류:', error);
+        }
+      };
+
+      ws.onerror = (error) => {
+        console.error('❌ [WebSocket] 연결 오류:', error);
+      };
+
+      ws.onclose = (event) => {
+        console.log('🔌 [WebSocket] 연결 종료 - 코드:', event.code, '이유:', event.reason);
+        setIsWebSocketConnected(false);
+
+        // 1000 (정상 종료) 또는 1001 (페이지 이동) 제외하고 재연결 시도
+        // 1006 (비정상 연결 종료)인 경우에만 재연결
+        if (event.code === 1006) {
+          console.log('🔄 [WebSocket] 비정상 종료 감지, 5초 후 재연결 시도...');
+          reconnectTimeoutRef.current = setTimeout(() => {
+            // 토큰이 여전히 있는지 확인 후 재연결
+            const currentToken = localStorage.getItem('access_token') ||
+              document.cookie.split('; ').find(row => row.startsWith('access_token='))?.split('=')[1];
+
+            if (currentToken) {
+              console.log('🔄 [WebSocket] 재연결 시도 중...');
+              connectWebSocket();
+            } else {
+              console.log('⚠️ [WebSocket] 토큰 없음, 재연결 중단');
+            }
+          }, 5000);
+        } else if (event.code === 1000) {
+          console.log('✅ [WebSocket] 정상 종료 (재연결 안 함)');
+        } else {
+          console.log('⚠️ [WebSocket] 연결 종료 (코드: ' + event.code + '), 재연결 안 함');
+        }
+      };
+
+      wsRef.current = ws;
+    } catch (error) {
+      console.error('❌ [WebSocket] 연결 실패:', error);
+    }
+  }, [handleRoutineStartReminder, handleDelayedRoutineItem, handleScheduleStart,
+      handleRoutineItemStart, handleSuppliesReminder, handleSevereWeatherAlert,
+      handleTrafficDelayAlert, showRoutineNotification]);
+
+  // WebSocket 연결 해제 함수
+  const disconnectWebSocket = useCallback(() => {
+    console.log('🔌 [WebSocket] 연결 해제 시도...');
+
+    if (reconnectTimeoutRef.current) {
+      clearTimeout(reconnectTimeoutRef.current);
+      reconnectTimeoutRef.current = null;
+      console.log('🔄 [WebSocket] 재연결 타이머 취소');
+    }
+
+    if (wsRef.current) {
+      // readyState 확인
+      if (wsRef.current.readyState === WebSocket.OPEN ||
+          wsRef.current.readyState === WebSocket.CONNECTING) {
+        wsRef.current.close(1000, 'User disconnect');
+        console.log('✅ [WebSocket] 연결 종료 요청 전송');
+      }
+      wsRef.current = null;
+      setIsWebSocketConnected(false);
+      console.log('✅ [WebSocket] 연결 해제 완료');
+    } else {
+      console.log('⚠️ [WebSocket] 이미 연결이 해제되어 있습니다.');
+    }
+  }, []);
+
+  // 초기 WebSocket 연결 (컴포넌트 마운트 시)
+  useEffect(() => {
+    const checkFCMAndConnectWebSocket = async () => {
+      const token = localStorage.getItem('access_token') ||
+        document.cookie.split('; ').find(row => row.startsWith('access_token='))?.split('=')[1];
+
+      if (!token) {
+        console.log('⚠️ [초기화] 인증 토큰 없음, WebSocket 연결 안 함');
+        setHasToken(false);
+        return;
+      }
+
+      setHasToken(true);
+
+      try {
+        // FCM 지원 여부 확인
+        if (!('Notification' in window)) {
+          console.log('🔔 [FCM] 브라우저가 알림을 지원하지 않음 → WebSocket 연결');
+          connectWebSocket();
+          return;
+        }
+
+        // 알림 권한 확인 (요청하지 않고 현재 상태만 확인)
+        if (Notification.permission === 'denied') {
+          console.log('🔔 [FCM] 알림 권한 거부됨 → WebSocket 연결');
+          connectWebSocket();
+          return;
+        }
+
+        if (Notification.permission === 'default') {
+          console.log('🔔 [FCM] 알림 권한 미설정 → FCM 토큰 발급 시도');
+        }
+
+        // Firebase 동적 import 시도
+        const firebaseModule = await import('@/utils/firebase');
+        const messagingInstance = firebaseModule.messaging as import('firebase/messaging').Messaging | null;
+
+        if (!messagingInstance) {
+          console.log('🔔 [FCM] Firebase messaging 초기화 실패 → WebSocket 연결');
+          connectWebSocket();
+          return;
+        }
+
+        // FCM 토큰 발급 시도
+        const { getToken } = await import('firebase/messaging');
+        const fcmToken = await getToken(messagingInstance, {
+          vapidKey: 'BK6gC7kpp7i9gv1WMQuWsW_487xmyfsXWtE0DERzOUunoCWN3fzoJ0JwP3BIL_d4pYGcjlGxhjjmD59-0UGzoug'
+        });
+
+        if (fcmToken) {
+          console.log('✅ [FCM] FCM 토큰 발급 성공 → WebSocket 연결 안 함');
+          console.log('   FCM 토큰:', fcmToken.substring(0, 20) + '...');
+          // FCM 토큰이 있으면 WebSocket 연결하지 않음
+          return;
+        } else {
+          console.log('⚠️ [FCM] FCM 토큰 발급 실패 → WebSocket 연결');
+          connectWebSocket();
+        }
+      } catch (error) {
+        console.error('❌ [FCM] FCM 초기화 오류 → WebSocket 연결:', error);
+        connectWebSocket();
+      }
     };
 
-    checkToken();
+    checkFCMAndConnectWebSocket();
+  }, []); // 빈 의존성 배열 - 마운트 시 한 번만 실행
 
-    // 스토리지/쿠키 변경 감지를 위한 이벤트 리스너
-    window.addEventListener('storage', checkToken);
-    return () => window.removeEventListener('storage', checkToken);
-  }, []);
+  // 로그아웃 감지 및 WebSocket 연결 해제
+  useEffect(() => {
+    const checkLogout = () => {
+      const token = localStorage.getItem('access_token') ||
+        document.cookie.split('; ').find(row => row.startsWith('access_token='))?.split('=')[1];
+
+      const tokenExists = !!token;
+
+      // 토큰이 있었는데 없어진 경우 (로그아웃)
+      if (hasToken && !tokenExists) {
+        console.log('🔓 [Auth] 로그아웃 감지, WebSocket 연결 해제...');
+        setHasToken(false);
+        disconnectWebSocket();
+      } else if (!hasToken && tokenExists) {
+        // 토큰이 새로 생긴 경우 (로그인) - hasToken 상태만 업데이트
+        // WebSocket 연결은 초기 useEffect에서 FCM 체크 후 결정
+        setHasToken(true);
+      }
+    };
+
+    // 주기적으로 토큰 상태 체크 (1초마다)
+    const intervalId = setInterval(checkLogout, 1000);
+
+    return () => {
+      clearInterval(intervalId);
+    };
+  }, [hasToken, disconnectWebSocket]); // disconnectWebSocket 추가
+
+  // 컴포넌트 언마운트 시 WebSocket 정리
+  useEffect(() => {
+    return () => {
+      disconnectWebSocket();
+    };
+  }, [disconnectWebSocket]);
+
+  // WebSocket 테스트 페이지로부터 postMessage 수신 처리
+  useEffect(() => {
+    const handlePostMessage = (event: MessageEvent) => {
+      // 보안: localhost:8080에서만 메시지 수신
+      if (event.origin !== 'http://localhost:8080') {
+        return;
+      }
+
+      console.log('📨 [PostMessage] 테스트 페이지로부터 메시지 수신:', event.data);
+
+      if (event.data.type === 'WEBSOCKET_NOTIFICATION' && event.data.data) {
+        const message = event.data.data;
+        const title = message.title || '알림';
+        const body = message.body || '새로운 알림이 있습니다.';
+        const type = message.type || message.data?.type;
+        const data = message.data || {};
+
+        console.log('🔔 [PostMessage] 알림 표시:', { title, body, type });
+
+        if (type) {
+          switch (type) {
+            case 'ROUTINE_START_REMINDER':
+              handleRoutineStartReminder(data, title, body);
+              break;
+            case 'delayed_routine_item':
+              handleDelayedRoutineItem(data, title, body);
+              break;
+            case 'SCHEDULE_START':
+              handleScheduleStart(data, title, body);
+              break;
+            case 'ROUTINE_ITEM_START':
+              handleRoutineItemStart(data, title, body);
+              break;
+            case 'SUPPLIES_REMINDER':
+              handleSuppliesReminder(data, title, body);
+              break;
+            case 'SEVERE_WEATHER_ALERT':
+              handleSevereWeatherAlert(data, title, body);
+              break;
+            case 'TRAFFIC_DELAY_ALERT':
+              handleTrafficDelayAlert(data, title, body);
+              break;
+            default:
+              showRoutineNotification(title, body, 'GENERIC');
+          }
+        } else {
+          showRoutineNotification(title, body, 'GENERIC');
+        }
+      }
+    };
+
+    window.addEventListener('message', handlePostMessage);
+
+    return () => {
+      window.removeEventListener('message', handlePostMessage);
+    };
+  }, [handleRoutineStartReminder, handleDelayedRoutineItem, handleScheduleStart,
+      handleRoutineItemStart, handleSuppliesReminder, handleSevereWeatherAlert,
+      handleTrafficDelayAlert, showRoutineNotification]);
+
 
   // FCM 메시지 수신 처리
   useEffect(() => {
@@ -405,8 +704,24 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
               return;
             }
 
-            // 루틴 첫 시작 알림 제거 - FCM으로만 받도록 수정
-            // 백엔드에서 ROUTINE_START_REMINDER를 보내므로 중복 제거
+            // 루틴 첫 시작 알림 (한 번만)
+            const scheduleKey = `schedule-${inProgressSchedule.id}`;
+            if (
+              !checkedItems.has(scheduleKey) &&
+              now >= routineStartTime &&
+              now < scheduleStartTime
+            ) {
+              showRoutineNotification(routineDetails.name, '루틴 시간입니다.', 'GENERIC');
+              setCheckedItems(prev => new Set(prev).add(scheduleKey));
+
+              // checkedRoutines 상수 활용 - 체크된 루틴 기록
+              setCheckedRoutines(prev => {
+                if (!prev.includes(routineDetails.name)) {
+                  return [...prev, routineDetails.name];
+                }
+                return prev;
+              });
+            }
 
             // 각 루틴 아이템의 시작 시간 계산 및 알림
             let accumulatedMinutes = 0;
@@ -422,14 +737,10 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
               // FCM 알림과 동일한 키 형식 사용 (타임스탬프 제거)
               const itemKey = `item-${inProgressSchedule.id}-${item.name}`;
 
-              // 1. 현재 시간이 아이템 시작 시간 범위 내에 있어야 함 (±2분)
-              // 2. 현재 시간이 아이템 종료 시간 이전이어야 함
-              // 3. 이미 알림을 보낸 적이 없어야 함
-              const timeDiffMinutes = (now.getTime() - itemStartTime.getTime()) / 60000;
-              const isWithinStartWindow = timeDiffMinutes >= 0 && timeDiffMinutes <= 1; // 시작 후 1분 이내
-
+              // 아이템 시작 시간이 되었고, 아직 종료되지 않았으며, 알림을 보내지 않은 경우
               if (
-                isWithinStartWindow &&
+                itemStartTime > lastCheckRef.current &&
+                itemStartTime <= now &&
                 now < itemEndTime &&
                 !checkedItems.has(itemKey)
               ) {
@@ -486,6 +797,8 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         checkedRoutines,
         setCheckedRoutines,
         sendAndroidFCMTokenToServer,
+        connectWebSocket,
+        disconnectWebSocket,
       }}
     >
       {children}

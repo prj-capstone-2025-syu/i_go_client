@@ -12,10 +12,10 @@ import {
 } from "@/api/scheduleApi";
 import { getRoutineById } from "@/api/routineApi";
 import { sendFCMTokenToServer } from "@/api/userApi";
-import { getMessaging, getToken } from "firebase/messaging";
+import { getMessaging, getToken, onMessage } from "firebase/messaging";
 import { app } from "@/utils/firebase";
 import { calculateAllTransportTimes } from "@/api/transportApi"; // 이동시간 API
-
+import { useNotification } from "@/components/common/NotificationContext";
 import { Swiper, SwiperSlide } from "swiper/react"; //swiper 사용
 import "swiper/css"; //swiper 기본 스타일
 import "swiper/css/pagination"; //swiper pagination 스타일
@@ -59,6 +59,7 @@ interface RoutineItem {
 const Home: FC = () => {
   const [keyword, setKeyword] = useState("");
   const router = useRouter();
+  const { connectWebSocket } = useNotification();
 
   const [upcomingSchedules, setUpcomingSchedules] = useState<ScheduleType[]>(
     []
@@ -106,10 +107,13 @@ const Home: FC = () => {
   // 1분마다 자동 리프레시
   const [refreshToken, setRefreshToken] = useState(0);
 
-  // 현재 표시할 일정을 결정하는 함수 (진행 중인 일정 > 다가오는 일정 순)
+    // 현재 표시할 일정을 결정하는 함수
+  // 진행 중인 일정만 반환 (루틴 시작 1시간 전부터 표시)
   const getCurrentSchedule = useCallback(() => {
-    return inProgressSchedule || nearestSchedule;
-  }, [inProgressSchedule, nearestSchedule]);
+    // inProgressSchedule이 있으면 반환
+    // null이면 null 반환 (nearestSchedule을 자동으로 표시하지 않음)
+    return inProgressSchedule;
+  }, [inProgressSchedule]);
 
   // 페이지 로드시 토큰 확인
   useEffect(() => {
@@ -155,22 +159,32 @@ const Home: FC = () => {
               console.log("FCM Token:", currentToken);
               await sendFCMTokenToServer(currentToken);
               console.log("FCM token sent to server.");
+
+              // 포그라운드 메시지 핸들러는 등록하지만 알림은 표시하지 않음
+              onMessage(messaging, (payload) => {
+                // 포그라운드 메시지 수신 시 콘솔에만 기록하고 알림 표시는 하지 않음
+                console.log("Foreground message received:", payload);
+                // 백그라운드에서만 알림이 표시되도록 함
+              });
             } else {
-              console.log(
-                "No registration token available. Request permission to generate one."
-              );
+              // FCM 토큰 발급 실패 시 WebSocket으로 대체
+              console.log("FCM 토큰을 가져올 수 없습니다. WebSocket으로 연결합니다.");
+              connectWebSocket();
             }
           } else {
-            console.log("Unable to get permission to notify.");
+            console.log("알림 권한이 거부되었습니다. WebSocket으로 연결합니다.");
+            connectWebSocket();
           }
         } catch (error) {
-          console.error("An error occurred while retrieving token. ", error);
+          console.error("FCM 토큰 발급 중 오류 발생. WebSocket으로 연결합니다.", error);
+          // FCM 실패 시 WebSocket으로 폴백
+          connectWebSocket();
         }
       };
 
       requestPermissionAndToken();
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, connectWebSocket]);
 
   useEffect(() => {
     AOS.init();
@@ -877,6 +891,7 @@ const Home: FC = () => {
 
                           let accumulatedDurationMinutes = 0;
 
+
                           return currentRoutineDetails.items.map((item) => {
                             const itemStartTime = new Date(
                               routineStartTime.getTime() +
@@ -1264,13 +1279,21 @@ const Home: FC = () => {
                   </div>
                 ) : upcomingSchedules.filter(
                     (schedule) =>
+                      // 진행 중인 일정에 표시되는 일정 제외
+                      schedule.id !== inProgressSchedule?.id &&
+                      // IN_PROGRESS 상태가 아닌 일정만
                       schedule.status !== "IN_PROGRESS" &&
+                      // 시작 시간이 현재보다 미래인 일정만
                       new Date(schedule.startTime) > new Date()
                   ).length > 0 ? (
                   upcomingSchedules
                     .filter(
                       (schedule) =>
+                        // 진행 중인 일정에 표시되는 일정 제외
+                        schedule.id !== inProgressSchedule?.id &&
+                        // IN_PROGRESS 상태가 아닌 일정만
                         schedule.status !== "IN_PROGRESS" &&
+                        // 시작 시간이 현재보다 미래인 일정만
                         new Date(schedule.startTime) > new Date()
                     )
                     .map((schedule) => (
