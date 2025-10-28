@@ -530,7 +530,7 @@ export default function CreateSchedule() {
                           <option value="">루틴을 선택하세요.</option>
                           {routines && routines.length > 0 ? (
                               routines.map((routine: RoutineName) => {
-                                console.log('렌더링할 루틴:', routine);
+                                // console.log('렌더링할 루틴:', routine);
                                 return (
                                     <option key={routine.id} value={routine.id.toString()}>
                                       {routine.name}

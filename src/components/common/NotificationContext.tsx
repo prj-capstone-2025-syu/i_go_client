@@ -93,6 +93,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
   const showRoutineNotification = useCallback(
     (name: string, subtitle?: string, type: NotificationType = 'GENERIC', weatherInfo?: WeatherInfo | null) => {
+      console.log('✅ [STEP 5] showRoutineNotification 호출됨', { name, subtitle, type });
       setRoutineNotificationData({ name, subtitle, type, weatherInfo });
       setRoutineNotificationOpen(true);
     },
@@ -105,35 +106,40 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   }, []);
 
   // 루틴 시작 1시간 전 알림 처리 - 기본 UI 호환성을 위해 subtitle에 날씨 정보 포함
-  const handleRoutineStartReminder = useCallback(
+const handleRoutineStartReminder = useCallback(
     (data: Record<string, string>, title: string, body: string) => {
-      // 백엔드에서 보내는 body 메시지를 그대로 사용
-      // "루틴 시작 1시간 전! 약속 시간까지 N분 남았습니다."
-      let subtitleText = body;
+      console.log('🔔 handleRoutineStartReminder 호출됨:', { title, body, data }); // 로그 추가
 
-      // 날씨 정보가 있으면 subtitle에 텍스트로 추가
+      // FCM 메시지의 title과 body를 그대로 사용
+      const notificationTitle = title || '루틴 시작 알림'; // title이 없을 경우 대비
+      const notificationBody = body; // body는 필수라고 가정
+
+      // 날씨 정보 처리 로직은 일단 주석 처리 (필요 시 복원)
+      /*
+      let subtitleText = body;
+      const weatherInfo: WeatherInfo | null = null; // 기본값 null
+
       if (data.hasWeather === 'true') {
         const temp = Math.round(parseFloat(data.temperature ?? '0'));
         const desc = data.weatherDescription ?? '';
         const humidity = data.humidity ?? '';
         const feelsLike = Math.round(parseFloat(data.feelsLike ?? '0'));
-
         subtitleText = `${body}\n\n${desc} ${temp}°C (체감 ${feelsLike}°C)\n습도: ${humidity}%`;
-      }
 
-      // 내부적으로는 WeatherInfo를 유지하지만 UI에는 subtitle만 전달
-      const weatherInfo: WeatherInfo | null = data.hasWeather === 'true'
-        ? {
+        weatherInfo = {
             description: data.weatherDescription ?? '',
             temperature: data.temperature ?? '',
             feelsLike: data.feelsLike ?? '',
             humidity: data.humidity ?? '',
             icon: data.weatherIcon ?? '',
             type: data.weatherType ?? ''
-          }
-        : null;
+          };
+      }
+      */
 
-      showRoutineNotification(title, subtitleText, 'ROUTINE_START_REMINDER', weatherInfo);
+      // showRoutineNotification 호출 (title과 body만 사용)
+      showRoutineNotification(notificationTitle, notificationBody, 'ROUTINE_START_REMINDER');
+
     },
     [showRoutineNotification]
   );
@@ -185,9 +191,9 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const handleSevereWeatherAlert = useCallback(
     (data: Record<string, string>, title?: string, body?: string) => {
       // 백엔드에서 title과 body를 직접 전달받는 경우 그대로 사용
-      // "날씨 알림", "날씨가 안좋아요🥲, 조금 일찍 나가볼까요? 알람 시작 45분 전!"
+      // "날씨 알림", "날씨가 안좋아요!, 조금 일찍 나가볼까요? 알람 시작 45분 전!"
       const alertTitle = title || '날씨 알림';
-      const alertBody = body || '날씨가 안좋아요🥲, 조금 일찍 나가볼까요? 알람 시작 45분 전!';
+      const alertBody = body || '날씨가 안좋아요!, 조금 일찍 나가볼까요? 알람 시작 45분 전!';
 
       console.log('악천후 알림 표시:', { scheduleId: data.scheduleId, title: alertTitle, body: alertBody });
       showRoutineNotification(alertTitle, alertBody, 'SEVERE_WEATHER_ALERT');
@@ -582,6 +588,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
             const type = payload.data?.type;
 
             if (type) {
+              console.log(`✅ [STEP 3] switch 문 진입: type = ${type}`);
               // 서버에서 보내는 알림 타입별 처리
               switch (type) {
                 case 'ROUTINE_START_REMINDER':
@@ -744,7 +751,10 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
                 now < itemEndTime &&
                 !checkedItems.has(itemKey)
               ) {
-                showRoutineNotification(item.name, '시작 시간입니다.', 'ROUTINE_ITEM_START');
+                showRoutineNotification(
+              `${item.name}`,
+              '루틴 시간입니다',
+              'ROUTINE_ITEM_START');
                 setCheckedItems(prev => new Set(prev).add(itemKey));
                 console.log('프론트엔드 체크로 알림 표시:', itemKey);
                 break; // 가장 최근 아이템만 알림
