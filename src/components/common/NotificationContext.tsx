@@ -10,7 +10,7 @@ export type NotificationType =
   | 'delayed_routine_item'
   | 'SCHEDULE_START'
   | 'ROUTINE_ITEM_START'
-    | 'SUPPLIES_REMINDER'
+  | 'SUPPLIES_REMINDER'
   | 'SEVERE_WEATHER_ALERT'
   | 'TRAFFIC_DELAY_ALERT'
   | 'GENERIC';
