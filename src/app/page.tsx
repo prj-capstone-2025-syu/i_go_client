@@ -185,7 +185,10 @@ const Home: FC = () => {
       // 두 API를 병렬로 호출하여 데이터 로딩 최적화
       Promise.all([getUpcomingSchedules(3), getLatestInProgressSchedule()])
         .then(([upcomingData, inProgressData]) => {
-          console.log("📊 [DEBUG] API 응답 데이터:", { upcomingData, inProgressData });
+          console.log("📊 [DEBUG] API 응답 데이터:", {
+            upcomingData,
+            inProgressData,
+          });
           // 다가오는 일정 설정
           const sortedSchedules = (upcomingData || []).sort(
             (a: ScheduleType, b: ScheduleType) =>
@@ -754,12 +757,12 @@ const Home: FC = () => {
                 {scheduleDataReady && currentSchedule && (
                   <div className="flex flex-col w-full">
                     <div className="flex justify-between items-center w-full mb-[8px] ">
-                      <p className="text-[#383838] text-[17px] font-[500] tracking-[-0.4px] leading-[155%] line-clamp-1">
+                      <p className="w-[80%] text-left text-[#383838] text-[17px] font-[500] tracking-[-0.4px] leading-[155%] line-clamp-1">
                         {currentSchedule.title}
                       </p>
                       <div className="flex items-center gap-x-[1px]">
                         <img src="/icon/clock.svg" alt="clock icon" />
-                        <p className="text-[#0080FF] text-[16px] font-[500] tracking-[-0.4px] leading-[160%]">
+                        <p className="w-[20%] text-[#0080FF] text-[16px] font-[500] tracking-[-0.4px] leading-[160%]">
                           {format(new Date(currentSchedule.startTime), "HH:mm")}
                         </p>
                       </div>
@@ -843,24 +846,42 @@ const Home: FC = () => {
                               </p>
                             );
                           }
-                           // 백엔드에서 제공하는 routineStartTime 사용
-                                let routineStartTime: Date;
-                                if (currentSchedule.routineStartTime) {
-                                  // 백엔드에서 계산된 루틴 시작 시간 사용
-                                  routineStartTime = new Date(currentSchedule.routineStartTime);
-                                  console.log("백엔드에서 제공한 루틴 시작 시간 사용:", routineStartTime);
-                                  console.log("현재 시간:", currentTime);
-                                } else {
-                                  // 백엔드에서 제공하지 않는 경우 프론트엔드에서 계산 (fallback)
-                                  const totalRoutineDuration = currentRoutineDetails.items.reduce((sum, item) => sum + item.durationMinutes, 0);
-                                  routineStartTime = new Date(scheduleStartTimeDate.getTime() - totalRoutineDuration * 60000);
-                                  console.log("프론트엔드에서 계산한 루틴 시작 시간:", routineStartTime);
-                                }
+                          // 백엔드에서 제공하는 routineStartTime 사용
+                          let routineStartTime: Date;
+                          if (currentSchedule.routineStartTime) {
+                            // 백엔드에서 계산된 루틴 시작 시간 사용
+                            routineStartTime = new Date(
+                              currentSchedule.routineStartTime
+                            );
+                            console.log(
+                              "백엔드에서 제공한 루틴 시작 시간 사용:",
+                              routineStartTime
+                            );
+                            console.log("현재 시간:", currentTime);
+                          } else {
+                            // 백엔드에서 제공하지 않는 경우 프론트엔드에서 계산 (fallback)
+                            const totalRoutineDuration =
+                              currentRoutineDetails.items.reduce(
+                                (sum, item) => sum + item.durationMinutes,
+                                0
+                              );
+                            routineStartTime = new Date(
+                              scheduleStartTimeDate.getTime() -
+                                totalRoutineDuration * 60000
+                            );
+                            console.log(
+                              "프론트엔드에서 계산한 루틴 시작 시간:",
+                              routineStartTime
+                            );
+                          }
 
-                                let accumulatedDurationMinutes = 0;
+                          let accumulatedDurationMinutes = 0;
 
                           return currentRoutineDetails.items.map((item) => {
-                            const itemStartTime = new Date(routineStartTime.getTime() + accumulatedDurationMinutes * 60000);
+                            const itemStartTime = new Date(
+                              routineStartTime.getTime() +
+                                accumulatedDurationMinutes * 60000
+                            );
                             const currentItemDuration = item.durationMinutes;
                             const itemEndTime = new Date(
                               itemStartTime.getTime() +
@@ -868,7 +889,11 @@ const Home: FC = () => {
                             );
                             accumulatedDurationMinutes += currentItemDuration;
 
-                            console.log(`아이템 "${item.name}": 시작=${itemStartTime.toLocaleTimeString()}, 종료=${itemEndTime.toLocaleTimeString()}, 현재=${currentTime.toLocaleTimeString()}`);
+                            console.log(
+                              `아이템 "${
+                                item.name
+                              }": 시작=${itemStartTime.toLocaleTimeString()}, 종료=${itemEndTime.toLocaleTimeString()}, 현재=${currentTime.toLocaleTimeString()}`
+                            );
 
                             let itemStatus: "완료" | "진행 중" | "대기 중" =
                               "대기 중";
