@@ -183,7 +183,7 @@ const Home: FC = () => {
 
       requestPermissionAndToken();
 
-      // 2. '앱' FCM 토큰 수신 로직
+      // 2. 앱 FCM 토큰 수신 로직
       const sendAppTokenToBackend = async (token: string) => {
         try {
           await sendAppFCMTokenToServer(token);
