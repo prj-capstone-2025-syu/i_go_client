@@ -136,99 +136,114 @@ const Home: FC = () => {
   }, [router]);
 
  useEffect(() => {
-  if (
-    typeof window !== "undefined" &&
-    "Notification" in window &&
-    isAuthenticated
-  ) {
-    const isWebView = () => {
-      const ua = navigator.userAgent.toLowerCase();
-      return ua.includes('wv') || (window as any).Android !== undefined;
-    };
+    if (
+      typeof window !== "undefined" &&
+      "Notification" in window &&
+      isAuthenticated
+    ) {
+      const messaging = getMessaging(app);
 
-    const messaging = getMessaging(app);
-
-    const requestPermissionAndToken = async () => {
-      try {
-        if (!isWebView()) {
+      const requestPermissionAndToken = async () => {
+        try {
           const permission = await Notification.requestPermission();
           if (permission === "granted") {
-            console.log("✅ Notification permission granted.");
+            console.log("Notification permission granted.");
+            // Firebase 콘솔에서 가져온 VAPID키
+            // 프로젝트 설정 > 클라우드 메시징 > 웹 푸시 인증서 > 웹 구성의 키 쌍
             const currentToken = await getToken(messaging, {
               vapidKey:
                 "BK6gC7kpp7i9gv1WMQuWsW_487xmyfsXWtE0DERzOUunoCWN3fzoJ0JwP3BIL_d4pYGcjlGxhjjmD59-0UGzoug",
             });
             if (currentToken) {
-              console.log("✅ [WEB] FCM Token:", currentToken);
+              console.log("FCM Token:", currentToken);
               await sendFCMTokenToServer(currentToken);
-              console.log("✅ [WEB] FCM token sent to server.");
+              console.log("FCM token sent to server.");
 
+              // 포그라운드 메시지 핸들러는 등록하지만 알림은 표시하지 않음
               onMessage(messaging, (payload) => {
-                console.log("✅ [WEB] Foreground message received:", payload);
+                // 포그라운드 메시지 수신 시 콘솔에만 기록하고 알림 표시는 하지 않음
+                console.log("Foreground message received:", payload);
+                // 백그라운드에서만 알림이 표시되도록 함
               });
             } else {
-              console.log("🔔 [FCM] 브라우저가 알림을 지원하지 않음 → WebSocket 연결");
+              // FCM 토큰 발급 실패 시 WebSocket으로 대체
+              console.log("FCM 토큰을 가져올 수 없습니다. WebSocket으로 연결합니다.");
               connectWebSocket();
             }
           } else {
-            console.log("⚠️ 알림 권한이 거부되었습니다. WebSocket으로 연결합니다.");
+            console.log("알림 권한이 거부되었습니다. WebSocket으로 연결합니다.");
             connectWebSocket();
           }
-        } else {
-          console.log("📱 [APP] WebView 환경 감지 → 웹 FCM 건너뜀, WebSocket 연결");
+        } catch (error) {
+          console.error("FCM 토큰 발급 중 오류 발생. WebSocket으로 연결합니다.", error);
+          // FCM 실패 시 WebSocket으로 폴백
           connectWebSocket();
         }
-      } catch (error) {
-        console.error("❌ [WEB] FCM 토큰 발급 중 오류 발생. WebSocket으로 연결합니다.", error);
-        connectWebSocket();
-      }
-    };
+      };
 
-    requestPermissionAndToken();
-
-    const sendAppTokenToBackend = async (token: string) => {
-      try {
-        console.log("🚀 [APP] 백엔드로 토큰 전송 시도:", token);
-        await sendAppFCMTokenToServer(token);
-        console.log("✅ [APP] FCM 토큰을 백엔드(/api/user/app-fcm-token)로 전송 성공!");
-      } catch (error) {
-        console.error("❌ [APP] FCM 토큰 백엔드 전송 실패:", error);
-      }
-    };
-
-    (window as any).setFCMToken = (token: string) => {
-      if (token) {
-        console.log("✅ [Next.js] 안드로이드 껍데기에서 '앱 토큰' 받음:", token);
-        sendAppTokenToBackend(token);
-      }
-    };
-
-    const storedToken = localStorage.getItem('fcm_token');
-    if (storedToken) {
-      console.log("✅ [Next.js] localStorage에서 '앱 토큰' 발견:", storedToken);
-      sendAppTokenToBackend(storedToken);
-      localStorage.removeItem('fcm_token');
+      requestPermissionAndToken();
     }
+  }, [isAuthenticated, connectWebSocket]);
 
-    if ((window as any).ANDROID_FCM_TOKEN) {
-      const token = (window as any).ANDROID_FCM_TOKEN;
-      console.log("✅ [Next.js] window.ANDROID_FCM_TOKEN에서 '앱 토큰' 발견:", token);
+ useEffect(() => {
+  if (typeof window === "undefined") return;
+
+  const sendAppTokenToBackend = async (token: string) => {
+    try {
+      console.log("🚀 [APP] 백엔드로 토큰 전송 시도:", token);
+      await sendAppFCMTokenToServer(token);
+      console.log("✅ [APP] FCM 토큰을 백엔드(/api/user/app-fcm-token)로 전송 성공!");
+    } catch (error) {
+      console.error("❌ [APP] FCM 토큰 백엔드 전송 실패:", error);
+    }
+  };
+
+  // 1) window.setFCMToken 함수 등록
+  (window as any).setFCMToken = (token: string) => {
+    if (token) {
+      console.log("✅ [Next.js] window.setFCMToken()으로 '앱 토큰' 받음:", token);
       sendAppTokenToBackend(token);
     }
+  };
 
-    window.addEventListener('fcmTokenReceived', (event: any) => {
-      if (event.detail) {
-        console.log("✅ [Next.js] 커스텀 이벤트로 '앱 토큰' 받음:", event.detail);
-        sendAppTokenToBackend(event.detail);
-      }
-    });
-
-    if ((window as any).Android && typeof (window as any).Android.requestFCMToken === 'function') {
-      console.log("📞 [Next.js] 안드로이드에 '앱 토큰' 요청...");
-      (window as any).Android.requestFCMToken();
-    }
+  // 2) localStorage 체크
+  const storedToken = localStorage.getItem('fcm_token');
+  if (storedToken) {
+    console.log("✅ [Next.js] localStorage에서 '앱 토큰' 발견:", storedToken);
+    sendAppTokenToBackend(storedToken);
+    localStorage.removeItem('fcm_token');
   }
-}, [isAuthenticated, connectWebSocket]);
+
+  // 3) window.ANDROID_FCM_TOKEN 체크
+  if ((window as any).ANDROID_FCM_TOKEN) {
+    const token = (window as any).ANDROID_FCM_TOKEN;
+    console.log("✅ [Next.js] window.ANDROID_FCM_TOKEN에서 '앱 토큰' 발견:", token);
+    sendAppTokenToBackend(token);
+  }
+
+  // 4) 이벤트 리스너 등록
+  const handleFcmToken = (event: any) => {
+    if (event.detail) {
+      console.log("✅ [Next.js] 커스텀 이벤트로 '앱 토큰' 받음:", event.detail);
+      sendAppTokenToBackend(event.detail);
+    }
+  };
+
+  window.addEventListener('fcmTokenReceived', handleFcmToken);
+  window.addEventListener('androidFcmToken', handleFcmToken);
+
+  // 5) Android에서 토큰 요청
+  if ((window as any).Android && typeof (window as any).Android.requestFCMToken === 'function') {
+    console.log("📞 [Next.js] 안드로이드에 '앱 토큰' 요청...");
+    (window as any).Android.requestFCMToken();
+  }
+
+  // Cleanup
+  return () => {
+    window.removeEventListener('fcmTokenReceived', handleFcmToken);
+    window.removeEventListener('androidFcmToken', handleFcmToken);
+  };
+}, []);
 
 
   useEffect(() => {
