@@ -135,14 +135,12 @@ const Home: FC = () => {
     }
   }, [router]);
 
-  // FCM 토큰 요청 및 서버 전송 로직
-useEffect(() => {
+ useEffect(() => {
   if (
     typeof window !== "undefined" &&
     "Notification" in window &&
     isAuthenticated
   ) {
-    //  WebView 감지 함수 추가
     const isWebView = () => {
       const ua = navigator.userAgent.toLowerCase();
       return ua.includes('wv') || (window as any).Android !== undefined;
@@ -152,7 +150,6 @@ useEffect(() => {
 
     const requestPermissionAndToken = async () => {
       try {
-        //  WebView가 아닌 경우에만 웹 FCM 토큰 발급 시도
         if (!isWebView()) {
           const permission = await Notification.requestPermission();
           if (permission === "granted") {
@@ -166,12 +163,10 @@ useEffect(() => {
               await sendFCMTokenToServer(currentToken);
               console.log("✅ [WEB] FCM token sent to server.");
 
-              // 포그라운드 메시지 핸들러
               onMessage(messaging, (payload) => {
                 console.log("✅ [WEB] Foreground message received:", payload);
               });
             } else {
-              // FCM 토큰 발급 실패 시 WebSocket으로 대체
               console.log("🔔 [FCM] 브라우저가 알림을 지원하지 않음 → WebSocket 연결");
               connectWebSocket();
             }
@@ -185,7 +180,6 @@ useEffect(() => {
         }
       } catch (error) {
         console.error("❌ [WEB] FCM 토큰 발급 중 오류 발생. WebSocket으로 연결합니다.", error);
-        // FCM 실패 시 WebSocket으로 폴백
         connectWebSocket();
       }
     };
@@ -194,6 +188,7 @@ useEffect(() => {
 
     const sendAppTokenToBackend = async (token: string) => {
       try {
+        console.log("🚀 [APP] 백엔드로 토큰 전송 시도:", token);
         await sendAppFCMTokenToServer(token);
         console.log("✅ [APP] FCM 토큰을 백엔드(/api/user/app-fcm-token)로 전송 성공!");
       } catch (error) {
@@ -213,6 +208,12 @@ useEffect(() => {
       console.log("✅ [Next.js] localStorage에서 '앱 토큰' 발견:", storedToken);
       sendAppTokenToBackend(storedToken);
       localStorage.removeItem('fcm_token');
+    }
+
+    if ((window as any).ANDROID_FCM_TOKEN) {
+      const token = (window as any).ANDROID_FCM_TOKEN;
+      console.log("✅ [Next.js] window.ANDROID_FCM_TOKEN에서 '앱 토큰' 발견:", token);
+      sendAppTokenToBackend(token);
     }
 
     window.addEventListener('fcmTokenReceived', (event: any) => {
