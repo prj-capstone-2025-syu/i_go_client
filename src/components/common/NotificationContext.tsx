@@ -649,7 +649,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
               now >= routineStartTime &&
               now < scheduleStartTime
             ) {
-              showRoutineNotification(routineDetails.name, '시작 시간입니다.', 'GENERIC');
+              showRoutineNotification(routineDetails.name, '일정 시작 시간입니다!', 'GENERIC');
               setCheckedItems(prev => new Set(prev).add(scheduleKey));
 
               setCheckedRoutines(prev => {
@@ -679,7 +679,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
               ) {
                 showRoutineNotification(
               `${item.name}`,
-              '시작 시간입니다',
+              '일정 시작 시간입니다!',
               'ROUTINE_ITEM_START');
                 setCheckedItems(prev => new Set(prev).add(itemKey));
                 console.log('프론트엔드 체크로 알림 표시:', itemKey);

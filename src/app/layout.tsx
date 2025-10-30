@@ -28,6 +28,7 @@ export default function RootLayout({
         <html lang="ko" className="">
         <head>
             {/* 카카오맵 SDK는 KakaoMapScript 컴포넌트에서 동적으로 로드됨 */}
+            <link rel="manifest" href="/manifest.json" />
         </head>
         <body className={`${noto.className} antialiased`}>
         <ClientLayout>
