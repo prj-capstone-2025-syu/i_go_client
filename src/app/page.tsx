@@ -136,7 +136,7 @@ const Home: FC = () => {
   }, [router]);
 
   // FCM 토큰 요청 및 서버 전송 로직
-  useEffect(() => {
+useEffect(() => {
     if (
       typeof window !== "undefined" &&
       "Notification" in window &&
@@ -156,14 +156,12 @@ const Home: FC = () => {
             });
             if (currentToken) {
               console.log("WEB FCM Token:", currentToken);
-              await sendFCMTokenToServer(currentToken); // 웹 토큰 전송
+              await sendFCMTokenToServer(currentToken);
               console.log("WEB FCM token sent to server.");
 
-              // 포그라운드 메시지 핸들러는 등록하지만 알림은 표시하지 않음
+              // 포그라운드 메시지 핸들러
               onMessage(messaging, (payload) => {
-                // 포그라운드 메시지 수신 시 콘솔에만 기록하고 알림 표시는 하지 않음
                 console.log("Foreground message received:", payload);
-                // 백그라운드에서만 알림이 표시되도록 함
               });
             } else {
               // FCM 토큰 발급 실패 시 WebSocket으로 대체
@@ -183,10 +181,10 @@ const Home: FC = () => {
 
       requestPermissionAndToken();
 
-      // 2. 앱 FCM 토큰 수신 로직
       const sendAppTokenToBackend = async (token: string) => {
         try {
           await sendAppFCMTokenToServer(token);
+          console.log("✅ [APP] FCM 토큰을 백엔드(/api/user/app-fcm-token)로 전송 성공!");
         } catch (error) {
           console.error("❌ [APP] FCM 토큰 백엔드 전송 실패:", error);
         }
@@ -206,25 +204,18 @@ const Home: FC = () => {
         localStorage.removeItem('fcm_token');
       }
 
-      /**
-       *  안드로이드가 커스텀 이벤트로 보낼 때
-       */
       window.addEventListener('fcmTokenReceived', (event: any) => {
         if (event.detail) {
           console.log("✅ [Next.js] 커스텀 이벤트로 '앱 토큰' 받음:", event.detail);
           sendAppTokenToBackend(event.detail);
         }
       });
-
-      /**
-       * 안드로이드 WebAppInterface가 심어준 함수 호출
-       */
       if ((window as any).Android && typeof (window as any).Android.requestFCMToken === 'function') {
         console.log("📞 [Next.js] 안드로이드에 '앱 토큰' 요청...");
         (window as any).Android.requestFCMToken();
       }
     }
-  }, [isAuthenticated, connectWebSocket]);
+  }, [isAuthenticated, connectWebSocket]); //
 
   useEffect(() => {
     AOS.init();
