@@ -11,7 +11,7 @@ import {
   getLatestInProgressSchedule,
 } from "@/api/scheduleApi";
 import { getRoutineById } from "@/api/routineApi";
-import { sendFCMTokenToServer } from "@/api/userApi";
+import { sendFCMTokenToServer, sendAppFCMTokenToServer } from "@/api/userApi";
 import { getMessaging, getToken, onMessage } from "firebase/messaging";
 import { app } from "@/utils/firebase";
 import { calculateAllTransportTimes } from "@/api/transportApi"; // 이동시간 API
@@ -150,15 +150,14 @@ const Home: FC = () => {
           if (permission === "granted") {
             console.log("Notification permission granted.");
             // Firebase 콘솔에서 가져온 VAPID키
-            // 프로젝트 설정 > 클라우드 메시징 > 웹 푸시 인증서 > 웹 구성의 키 쌍
             const currentToken = await getToken(messaging, {
               vapidKey:
                 "BK6gC7kpp7i9gv1WMQuWsW_487xmyfsXWtE0DERzOUunoCWN3fzoJ0JwP3BIL_d4pYGcjlGxhjjmD59-0UGzoug",
             });
             if (currentToken) {
-              console.log("FCM Token:", currentToken);
-              await sendFCMTokenToServer(currentToken);
-              console.log("FCM token sent to server.");
+              console.log("WEB FCM Token:", currentToken);
+              await sendFCMTokenToServer(currentToken); // 웹 토큰 전송
+              console.log("WEB FCM token sent to server.");
 
               // 포그라운드 메시지 핸들러는 등록하지만 알림은 표시하지 않음
               onMessage(messaging, (payload) => {
@@ -176,13 +175,54 @@ const Home: FC = () => {
             connectWebSocket();
           }
         } catch (error) {
-          console.error("FCM 토큰 발급 중 오류 발생. WebSocket으로 연결합니다.", error);
+          console.error("WEB FCM 토큰 발급 중 오류 발생. WebSocket으로 연결합니다.", error);
           // FCM 실패 시 WebSocket으로 폴백
           connectWebSocket();
         }
       };
 
       requestPermissionAndToken();
+
+      // 2. '앱' FCM 토큰 수신 로직
+      const sendAppTokenToBackend = async (token: string) => {
+        try {
+          await sendAppFCMTokenToServer(token);
+        } catch (error) {
+          console.error("❌ [APP] FCM 토큰 백엔드 전송 실패:", error);
+        }
+      };
+
+      (window as any).setFCMToken = (token: string) => {
+        if (token) {
+          console.log("✅ [Next.js] 안드로이드 껍데기에서 '앱 토큰' 받음:", token);
+          sendAppTokenToBackend(token);
+        }
+      };
+
+      const storedToken = localStorage.getItem('fcm_token');
+      if (storedToken) {
+        console.log("✅ [Next.js] localStorage에서 '앱 토큰' 발견:", storedToken);
+        sendAppTokenToBackend(storedToken);
+        localStorage.removeItem('fcm_token');
+      }
+
+      /**
+       *  안드로이드가 커스텀 이벤트로 보낼 때
+       */
+      window.addEventListener('fcmTokenReceived', (event: any) => {
+        if (event.detail) {
+          console.log("✅ [Next.js] 커스텀 이벤트로 '앱 토큰' 받음:", event.detail);
+          sendAppTokenToBackend(event.detail);
+        }
+      });
+
+      /**
+       * 안드로이드 WebAppInterface가 심어준 함수 호출
+       */
+      if ((window as any).Android && typeof (window as any).Android.requestFCMToken === 'function') {
+        console.log("📞 [Next.js] 안드로이드에 '앱 토큰' 요청...");
+        (window as any).Android.requestFCMToken();
+      }
     }
   }, [isAuthenticated, connectWebSocket]);
 

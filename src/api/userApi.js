@@ -49,6 +49,18 @@ export const sendFCMTokenToServer = async (token) => {
     }
 };
 
+// 안드로이드 FCM 토큰을 서버로 전송하는 함수
+export const sendAppFCMTokenToServer = async (token) => {
+    try {
+        const response = await api.post('/user/app-fcm-token', { fcmToken: token });
+        console.log('✅ [APP] FCM token sent to server successfully:', response.data);
+        return response.data;
+    } catch (error) {
+        console.error('❌ [APP] Error sending FCM token to server:', error);
+        throw error;
+    }
+};
+
 // 최근 알림 목록 가져오기
 export const getRecentNotifications = async (limit = 7) => {
     const response = await api.get(`/notifications/recent?limit=${limit}`);
