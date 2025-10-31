@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Suspense } from "react";
-import NavBarMain from "@/components/common/topNavMain";
+import NavBar from "@/components/common/topNav";
 import { sendSmartMidpointMessage, resetMidpointSession } from "@/api/midpointApi";
 
 
@@ -234,7 +234,6 @@ export default function ChatPage() {
         <Suspense fallback={<div>로딩 중...</div>}>
             <div className="flex flex-col w-full h-full">
                 <style jsx global>{`
-                  .btn-history-back { pointer-events: none; }
                   .main-wrapper { height: 100dvh !important; }
                   .bottom-nav-warpper { display: none !important; }
                   @keyframes pulse {
@@ -243,7 +242,7 @@ export default function ChatPage() {
                   }
                   .animate-pulse { animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
                 `}</style>
-                <NavBarMain link="/" />
+                <NavBar title="중간 위치 정하기" link="/setting" />
                 <ChatInterface />
             </div>
         </Suspense>
