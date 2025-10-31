@@ -186,6 +186,20 @@ export default function Home() {
               노지각 챌린지
             </p>
           </Link>
+               <Link
+            className="hover:opacity-[0.7] border-[1px] p-[20px] border-[#dfdfdf] rounded-[6px] bg-[#fff] w-full shadow-sm flex justify-between items-center transition-all duration-700 ease-in-out"
+            href="/midpoint"
+            style={{
+              opacity: showChallengeLink ? 1 : 0,
+              transform: showChallengeLink
+                ? "translateY(0)"
+                : "translateY(10px)",
+            }}
+          >
+            <p className="text-[18px] font-[500] text-[#01274F] leading-[130%] line-clamp-1">
+              중간장소 정하기
+            </p>
+          </Link>
           {/* 알람 목록 */}
           <div
             className="flex justify-between items-end w-full mb-[0px] px-[5px] transition-all duration-700 ease-in-out"
