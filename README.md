@@ -3,7 +3,6 @@
 <div align="center">
 <img width="300" alt="I-GO Project Logo" src="https://igo.ai.kr/logo.png">
 
-[![Hits](https://hits.seeyoufarm.com/api/count/incr/badge.svg?url=https%3A%2F%2Fgithub.com%2Fprj-capstone-2025-syu%2Fi_go_client&count_bg=%23007ACC&title_bg=%23555555&icon=&icon_color=%23E7E7E7&title=hits&edge_flat=false)](https://hits.seeyoufarm.com)
 
 </div>
 
@@ -12,7 +11,6 @@
 ## 배포 주소 🚀
 
 > **실 서버:** [https://igo.ai.kr](https://igo.ai.kr) <br>
-> **개발 서버:** [https://i-go.netlify.app/](https://i-go.netlify.app/) <br>
 
 ---
 
